@@ -1,8 +1,9 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { getProvider, providerEnvKeys } from './providers/index.js';
+import { readUserConfig, userConfigPath } from './user-config.js';
 
-const KEYS = ['NOTION_PATH', 'NOTIONSI_LOG_CONTENT', 'NOTIONSI_PROVIDER', 'NOTIONSI_TOOLS', 'NOTIONSI_SYSTEM_PROMPT_FILE', ...providerEnvKeys];
+export const CONFIG_KEYS = Object.freeze(['NOTION_PATH', 'NOTIONSI_LOG_CONTENT', 'NOTIONSI_PROVIDER', 'NOTIONSI_TOOLS', 'NOTIONSI_SYSTEM_PROMPT_FILE', ...providerEnvKeys]);
 
 function loadSystemPrompt(path) {
   if (!path?.trim()) return '';
@@ -18,12 +19,17 @@ function loadSystemPrompt(path) {
     throw new Error('NOTIONSI_SYSTEM_PROMPT_FILE must reference a readable, non-empty UTF-8 file of at most 64 KiB.');
   }
 }
-export function loadLocalEnv({ env = process.env, path = '.env.local' } = {}) {
-  if (!existsSync(path)) return env;
+export function readProjectEnv(path = '.env.local') {
+  if (!existsSync(path)) return {};
+  if (statSync(path).size > 65536) throw new Error('.env.local exceeds 64 KiB.');
   const text = readFileSync(path, 'utf8');
   if (text.length > 65536) throw new Error('.env.local exceeds 64 KiB.');
-  const local = parseEnv(text);
-  for (const key of KEYS) if (env[key] === undefined && local[key] !== undefined) env[key] = local[key];
+  const parsed = parseEnv(text);
+  return Object.fromEntries(CONFIG_KEYS.filter(key => parsed[key] !== undefined).map(key => [key, parsed[key]]));
+}
+export function loadLocalEnv({ env = process.env, path = '.env.local', userPath = userConfigPath({ env }) } = {}) {
+  const local = readProjectEnv(path), saved = userPath === null ? {} : readUserConfig({ path: userPath }).values;
+  for (const key of CONFIG_KEYS) if (env[key] === undefined && (saved[key] !== undefined || local[key] !== undefined)) env[key] = saved[key] ?? local[key];
   return env;
 }
 

@@ -1,5 +1,9 @@
 # 使用与验证指南
 
+除智谱外，还可选择 OpenAI API、ChatGPT/Codex 订阅（实验性）、Anthropic、Gemini、DeepSeek、OpenRouter、Moonshot、通义、MiniMax、Groq、Mistral、Ollama 或自定义兼容接口。配置、订阅登录和验证边界见 [多提供商使用指南](model-providers.md)。
+
+推荐 `npm run config` 交互配置，按“添加供应商 → 选择提供商 → Key/OAuth → 获取模型列表 → 选择模型 → 思考强度”操作，保存到 `%LOCALAPPDATA%\NotionSI\config.json`。订阅凭据默认在 `%LOCALAPPDATA%\NotionSI\auth\openai-codex\auth.json`。优先级为 CLI > 进程环境 > 用户配置 > `.env.local` > 默认值；下文的环境文件方式保留为兼容后备。
+
 ## 智谱接入
 
 当前配置是 **GLM Coding Plan CN + GLM-5.3**。通过 `ZHIPU_API_PROFILE` 显式选择端点，不自动回退其他端点、不伪装成其他客户端。智谱官方的指定工具列表不含此自建代理；技术联通不等于官方支持或套餐使用资格，实际计费还由 Key 类型决定。[接入说明](https://docs.bigmodel.cn/cn/coding-plan/tool/others)、[Key 分类](https://docs.bigmodel.cn/cn/coding-plan/notice/api-key-management)
@@ -20,12 +24,12 @@ ZHIPU_REASONING_EFFORT=low
 `.env.local` 已加入忽略规则。不要把 Key 粘贴到聊天、命令参数或提交到版本库。进程环境变量优先于文件配置；配置只加载项目允许的字段（见 `.env.example`）。
 
 ```powershell
-npm run config
+npm run config:show
 npm run check:coding-cn
 npm run start:coding-cn
 ```
 
-- `config` 只显示配置状态，不显示密钥、不发请求。
+- `config` 打开交互配置；`config:show` 只显示脱敏状态、不发请求。
 - `check:coding-cn` 通过国内 Coding Plan 端点真实发送固定连通测试提示，不包含 Notion 内容。
 - `start:coding-cn` 启动/连接 Notion 后使用真实模型；已有调试端口可用 `npm run attach:coding-cn`。
 - Coding Plan CN 接口是 `https://open.bigmodel.cn/api/coding/paas/v4/chat/completions`。
@@ -48,7 +52,7 @@ NOTIONSI_SYSTEM_PROMPT_FILE=system-prompt.local.txt
 
 路径相对于启动时的工作目录。文件必须为非空 UTF-8 文本，最多 64 KiB。启动时读取，修改后需要退出路由进程并重新启动；重启会清除本进程保存的会话历史。未配置此项时不注入系统提示词，mock 模式忽略此项。
 
-每次请求会在聊天历史前添加一条 `system` 消息，不写入 Notion transcript，也不受最近 40 条历史裁剪影响。`npm run config` 只显示是否配置及字节数，不输出提示词正文。`*.local.txt` 已被忽略。连通测试也会使用此提示词，因此强制固定回复的提示词可能改变测试输出。
+每次请求会在聊天历史前添加一条 `system` 消息，不写入 Notion transcript，也不受最近 40 条历史裁剪影响。`npm run config:show` 只显示是否配置及字节数，不输出提示词正文。`*.local.txt` 已被忽略。连通测试也会使用此提示词，因此强制固定回复的提示词可能改变测试输出。
 
 示例是为当前文本能力编写的简短提示词。社区提取的原始提示词与工具适配边界见 [说明](system-prompt-and-tools.md)。描述工具的提示词不会创建工具；`NOTIONSI_TOOLS=native` 时会发送实际工具 schema，并执行调用与回传结果。未启用时只提供文本对话。
 
@@ -102,7 +106,7 @@ NOTION_PATH="D:/Apps/Notion/Notion.exe"
 # 也可填写 NOTION_PATH="D:/Apps/Notion"
 ```
 
-也可临时运行 `npm start -- --notion "D:\Apps\Notion"`。优先级为 `--notion` > 系统环境变量 `NOTION_PATH` > `.env.local` > 自动查找。路径中的空格需加引号；相对路径以启动工作目录为基准，不展开 `~`、`%LOCALAPPDATA%` 等变量。显式路径无效时直接报错，不会悄悄切换到另一份安装。`npm run config` 显示解析后的 `notionPath`，未发现时为 `null`。
+也可临时运行 `npm start -- --notion "D:\Apps\Notion"`。优先级为 `--notion` > 系统环境变量 `NOTION_PATH` > 用户配置 > `.env.local` > 自动查找。路径中的空格需加引号；相对路径以启动工作目录为基准，不展开 `~`、`%LOCALAPPDATA%` 等变量。显式路径无效时直接报错，不会悄悄切换到另一份安装。`node index.js config --show` 显示解析后的 `notionPath`，未发现时为 `null`。
 
 未指定路径时，依次查找 `%LOCALAPPDATA%/Programs/Notion`、`%LOCALAPPDATA%/Notion`、Program Files / Program Files (x86) 下的 Notion、用户 Scoop 和全局 Scoop 安装。自定义位置使用上述配置；`--attach` 仅连接已有调试端口，无需本地安装路径。路径查找支持不等于完成该安装版本的协议兼容验证，目前集成验证仍仅覆盖前述 Scoop 版本，macOS / Linux 启动未适配。
 

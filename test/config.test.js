@@ -10,7 +10,7 @@ test('local config respects environment overrides and never imports unrelated en
   try {
     const path = join(root, '.env.local');
     writeFileSync(path, 'ZHIPU_API_KEY="private-test-key"\nNOTIONSI_PROVIDER=zhipu\nZHIPU_MODEL=glm-4.7-flash\nNODE_OPTIONS=bad\n');
-    const env = { ZHIPU_MODEL: 'glm-5.3' }; loadLocalEnv({ env, path });
+    const env = { ZHIPU_MODEL: 'glm-5.3' }; loadLocalEnv({ env, path, userPath: null });
     assert.equal(env.ZHIPU_MODEL, 'glm-5.3'); assert.equal(env.NODE_OPTIONS, undefined);
     const config = providerConfig({ env });
     assert.equal(JSON.stringify(publicConfig(config)).includes('private-test-key'), false);
@@ -52,7 +52,7 @@ test('local system prompt is loaded from UTF-8 file, kept out of public configur
     writeFileSync(path, '\uFEFF仅回复测试内容。\n');
     writeFileSync(envPath, `NOTIONSI_SYSTEM_PROMPT_FILE="${path.replaceAll('\\', '/')}"\n`);
     const env = { NOTIONSI_PROVIDER: 'zhipu', ZHIPU_API_KEY: 'test-only' };
-    loadLocalEnv({ env, path: envPath });
+    loadLocalEnv({ env, path: envPath, userPath: null });
     const config = providerConfig({ env });
     assert.equal(config.systemPrompt, '仅回复测试内容。');
     assert.equal(publicConfig(config).systemPromptConfigured, true);

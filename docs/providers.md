@@ -1,6 +1,8 @@
 # 模型提供商开发指南
 
-NotionSI 的入口与 Notion 适配层不依赖具体供应商。当前内置 `mock` 和 `zhipu`，其他 API 尚未实现。
+NotionSI 的入口与 Notion 适配层不依赖具体供应商。当前内置 `mock`、`zhipu`、多家 HTTP API 与实验性的 `openai-codex` 订阅适配，配置示例见 [多提供商使用指南](model-providers.md)。
+
+`http-provider.js` 负责公共请求、超时、工具循环和历史回写；`wire-protocols.js` 实现 Responses、Chat Completions、Anthropic 与 Gemini 转换和流解析；`http-config.js` 注册供应商根地址与环境变量。增加兼容服务通常只需扩展该注册表。`codex-auth.js` 独立管理订阅文件、官方 CLI 设备码登录和令牌刷新；不从普通 API Key 推断订阅身份。
 
 ## 注册与配置
 

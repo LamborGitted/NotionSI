@@ -1,4 +1,5 @@
 import { zhipuAdapter } from './zhipu-config.js';
+import { httpAdapters, codexAdapter } from './http-config.js';
 
 const providers = Object.freeze({
   mock: {
@@ -8,6 +9,8 @@ const providers = Object.freeze({
     publicConfig: () => ({ endpoint: null, apiKeyConfigured: false }),
   },
   zhipu: zhipuAdapter,
+  ...httpAdapters,
+  'openai-codex': codexAdapter,
 });
 
 export const providerNames = Object.freeze(Object.keys(providers));

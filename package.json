@@ -7,9 +7,13 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:exe": "node scripts/build-executable.js",
+    "test:exe": "node scripts/smoke-executable.js",
     "start": "node index.js",
     "attach": "node index.js attach",
     "config": "node index.js config",
+    "config:show": "node index.js config --show --attach",
+    "tui": "node index.js tui",
     "check": "node index.js check",
     "start:zhipu": "node index.js start --provider zhipu",
     "start:coding-cn": "node index.js start --provider zhipu --profile coding-cn",
@@ -26,5 +30,9 @@
     "marked": "15.0.12"
   },
   "description": "Route Notion desktop AI requests to configurable model providers.",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6"
+  }
 }

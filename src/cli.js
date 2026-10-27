@@ -6,6 +6,8 @@ import { loadLocalEnv, providerConfig, createProvider, publicConfig } from './co
 import { openNotion } from './notion-launcher.js';
 import { providerNames } from './providers/index.js';
 import { TerminalReporter } from './terminal-reporter.js';
+import { loginCodex } from './providers/codex-auth.js';
+import { userConfigPath } from './user-config.js';
 
 export async function main(args = process.argv.slice(2)) {
 function option(name, fallback) {
@@ -15,7 +17,7 @@ function option(name, fallback) {
   return args[index + 1];
 }
 if (args.includes('--help')) {
-  console.log(`Usage: node index.js [start|attach|config|check|verify|verify-editor|check-tools|verify-tool-ui] [options]
+  console.log(`Usage: node index.js [start|attach|config|check|login|tui|verify|verify-editor|check-tools|verify-tool-ui] [options]
 
   --provider ${providerNames.join('|')}  Select a model provider
   --profile standard|coding-cn  Zhipu endpoint profile
@@ -25,21 +27,32 @@ if (args.includes('--help')) {
   --attach                     Connect without launching Notion
   --check-config               Display configuration without sending requests
   --check-api                  Send a fixed test prompt without connecting to Notion
+  --login                      Sign in to openai-codex with ChatGPT (device code)
   --no-content-log             Hide assistant reply content in terminal
   --answer TEXT                Mock response text
   --delay-ms 60                Mock chunk delay
 
-Configuration: .env.local. CLI options override environment/file settings.
+Configuration: ${userConfigPath()}
+Use "npm run config" to add providers, authenticate, select a model and reasoning level.
+Use "node index.js config --show --attach" for noninteractive, redacted diagnostics.
+Priority: CLI > environment > user config > legacy .env.local > defaults.
 Ctrl+C or q removes the hook and leaves Notion open.`);
   return;
 }
-const known = new Set(['--attach', '--check-config', '--check-api', '--no-content-log', '--provider', '--profile', '--model', '--endpoint', '--notion', '--answer', '--delay-ms']);
-for (let i = 0; i < args.length; i++) { if (!known.has(args[i])) throw new Error(`Unknown option ${args[i]}`); if (!['--attach', '--check-config', '--check-api', '--no-content-log'].includes(args[i])) { option(args[i]); i++; } }
-if (args.includes('--check-config') && args.includes('--check-api')) throw new Error('Choose config or check, not both.');
+const flags = ['--attach', '--check-config', '--check-api', '--login', '--no-content-log'];
+const known = new Set([...flags, '--provider', '--profile', '--model', '--endpoint', '--notion', '--answer', '--delay-ms']);
+for (let i = 0; i < args.length; i++) { if (!known.has(args[i])) throw new Error(`Unknown option ${args[i]}`); if (!flags.includes(args[i])) { option(args[i]); i++; } }
+if (['--check-config', '--check-api', '--login'].filter(flag => args.includes(flag)).length > 1) throw new Error('Choose config or check or login, not multiple modes.');
 loadLocalEnv();
 const config = providerConfig({ provider: option('--provider', process.env.NOTIONSI_PROVIDER ?? 'mock'), model: option('--model', undefined),
   apiProfile: option('--profile', undefined) });
 if(args.includes('--no-content-log'))config.logContent=false;
+if (args.includes('--login')) {
+  if (config.provider !== 'openai-codex') throw new Error('login supports --provider openai-codex only.');
+  await loginCodex(config);
+  console.log('ChatGPT subscription login complete. Credentials saved locally.');
+  return;
+}
 if (args.includes('--check-api')) {
   const provider = createProvider(config);
   if (!provider) throw new Error('mock has no API to check. Select a model provider with --provider.');

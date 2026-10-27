@@ -2,6 +2,12 @@
 
 ## 未发布
 
+- `npm run config` 改为交互配置首页：添加供应商或重选已有供应商，依次完成 Key/OAuth、供应商模型目录、模型选择与思考强度；脱敏诊断改用 `npm run config:show`。models.dev 补充按模型区分的思考能力，支持公开目录缓存与明确标注的备用目录。配置及默认订阅凭据位于 `%LOCALAPPDATA%\NotionSI`，兼容已有 `.env.local`，保存时不改写项目文件。
+
+- 自行实现四种 HTTP/SSE 模型协议，新增 OpenAI、Anthropic、Gemini、DeepSeek、OpenRouter、Moonshot、通义、MiniMax、Groq、Mistral、Ollama 与自定义兼容接口；复用历史、原生工具与编辑器路由。
+- 新增实验性 `openai-codex` 订阅通道、官方 CLI 设备码登录、独立凭据文件、并发令牌刷新和明确 401 后的一次鉴权重试，不回退 API Key 计费。
+- 增加多提供商配置示例、使用指南及协议/鉴权的离线测试；新供应商和订阅通道尚待真实账号与桌面集成验证。
+
 - 采用 MIT 许可证，README 重整为项目首页，详细操作迁移到使用指南。
 - 源码、脚本和测试统一使用 `.js` ES Modules，通过根目录 `index.js` 提供统一命令入口。
 - 拆分提供商注册、配置与公共错误类型，连通检查跟随当前提供商，保留原有命令别名。
