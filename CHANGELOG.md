@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 接入新版和经典 Notion 聊天图片附件，支持纯图片、图文混合、多轮追问与工具循环；转换至 Chat Completions、Responses、Anthropic、Gemini 及智谱协议。添加图片格式、大小、下载地址、重定向与取消保护，以及离线测试。图片功能仍待真实上传和视觉模型桌面集成验证，详见 [图片输入](docs/image-input.md)。
+
 - `npm run config` 改为交互配置首页：添加供应商或重选已有供应商，依次完成 Key/OAuth、供应商模型目录、模型选择与思考强度；脱敏诊断改用 `npm run config:show`。models.dev 补充按模型区分的思考能力，支持公开目录缓存与明确标注的备用目录。配置及默认订阅凭据位于 `%LOCALAPPDATA%\NotionSI`，兼容已有 `.env.local`，保存时不改写项目文件。
 
 - 自行实现四种 HTTP/SSE 模型协议，新增 OpenAI、Anthropic、Gemini、DeepSeek、OpenRouter、Moonshot、通义、MiniMax、Groq、Mistral、Ollama 与自定义兼容接口；复用历史、原生工具与编辑器路由。

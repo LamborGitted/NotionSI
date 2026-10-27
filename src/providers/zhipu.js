@@ -1,4 +1,6 @@
 import { ProviderError } from './errors.js';
+import { validateMessages } from './http-common.js';
+import { chatContent, checkMessageBudget } from '../multimodal.js';
 
 // Official CN endpoints, selected explicitly. Never fall back across profiles.
 export const ZHIPU_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
@@ -131,19 +133,13 @@ export class ZhipuProvider {
     this.apiProfile = apiProfile; this.endpoint = ZHIPU_ENDPOINTS[apiProfile];
   }
   async *stream({ messages, signal, tools, onToolEvent, onHistory } = {}) {
-    if (!Array.isArray(messages) || !messages.some(message => message.role === 'user')
-        || messages.some(message => !['system', 'user', 'assistant', 'tool'].includes(message.role) ||
-          (typeof message.content !== 'string' && !(message.role === 'assistant' && message.content === null && message.tool_calls?.length)))) {
-      throw new ZhipuError('没有可发送给智谱的有效文本消息。');
-    }
+    validateMessages(messages);
     // Insert afresh on each turn, outside adapters' bounded conversation history.
     // Never mutate the caller's history or store the prompt in a transcript.
     messages = structuredClone(messages);
     const preamble = [this.#systemPrompt, tools?.instructions].filter(Boolean).join('\n\n');
     const wireMessages = () => preamble ? [{role:'system',content:preamble}, ...messages] : messages;
-    if (JSON.stringify(wireMessages()).length > 100000) {
-      throw new ZhipuError('当前会话文本过长，请新建对话。');
-    }
+    checkMessageBudget(wireMessages(), 100000);
     const timeout = AbortSignal.timeout(this.timeoutMs);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     let response;
@@ -151,12 +147,12 @@ export class ZhipuProvider {
       let totalCalls = 0;
       for (let round = 0; round < 8; round++) {
       combined.throwIfAborted();
-      if (JSON.stringify(wireMessages()).length > 250000) throw new ZhipuError('工具会话内容过长，请新建对话或缩小查询范围。');
+      checkMessageBudget(wireMessages());
       // Build headers explicitly: no Notion cookies, IDs, URLs or request headers.
       response = await this.#fetch(this.endpoint, {
         method: 'POST', redirect: 'error', credentials: 'omit', signal: combined,
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', Authorization: `Bearer ${this.#apiKey}` },
-        body: JSON.stringify({ model: this.model, messages: wireMessages(), stream: true, max_tokens: this.maxTokens,
+        body: JSON.stringify({ model: this.model, messages: wireMessages().map(m => ({ ...m, content: chatContent(m.content) })), stream: true, max_tokens: this.maxTokens,
           ...(tools?.definitions?.length ? {tools:tools.definitions,tool_choice:'auto'} : {}),
           thinking: { type: this.thinking }, ...(this.reasoningEffort ? { reasoning_effort: this.reasoningEffort } : {}) }),
       });
@@ -251,6 +247,7 @@ export class ZhipuProvider {
       if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
       if (timeout.aborted) throw new ZhipuError('智谱请求超时，请稍后重试。');
       if (error instanceof ZhipuError) throw error;
+      if (error instanceof ProviderError) throw new ZhipuError(error.message, { status: error.status, code: error.code });
       throw new ZhipuError('无法连接智谱 API，请检查网络后重试。');
     }
   }

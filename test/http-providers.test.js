@@ -7,6 +7,7 @@ import { events } from '../src/providers/http-common.js';
 import { AgentMock } from '../src/agent-mock.js';
 import { WriterAdapter } from '../src/writer-adapter.js';
 import { MockRouter } from '../src/router.js';
+import { image } from './helpers/image.js';
 
 const event = value => `data: ${JSON.stringify(value)}\r\n\r\n`;
 const response = value => new Response(value, { headers: { 'content-type': 'text/event-stream' } });
@@ -52,6 +53,29 @@ const fixtures = {
 const make = (protocol, fetchImpl, overrides = {}) => new HttpProvider({ name: 'fixture', protocol, baseUrl: 'https://example.test/v1', model: 'fixture/model', apiKey: 'private-test-key', fetchImpl, ...overrides });
 
 for (const [protocol, fixture] of Object.entries(fixtures)) {
+  test(`${protocol}: images survive native conversion, tool rounds and the next user turn`, async () => {
+    const requests = []; let history;
+    const provider = make(protocol, async (_url, init) => {
+      requests.push(JSON.parse(init.body));
+      return response(requests.length === 1 ? fixture.tool : fixture.text);
+    });
+    const messages = [{ role: 'user', content: [{ type: 'text', text: '图片是什么？' }, image, image] }];
+    const tools = { definitions, execute: () => ({ text: 'tool readback' }) };
+    await collect(provider.stream({ messages, tools, onHistory: h => { history = h; } }));
+    await collect(provider.stream({ messages: [...history, { role: 'user', content: '继续' }], tools }));
+    for (const body of requests) {
+      const content = protocol === 'responses' ? body.input[0].content : protocol === 'gemini' ? body.contents[0].parts : body.messages[0].content;
+      const expected = protocol === 'chat-completions' ? [{ type: 'text', text: '图片是什么？' }, ...Array(2).fill({ type: 'image_url', image_url: { url: `data:image/png;base64,${image.data}` } })]
+        : protocol === 'responses' ? [{ type: 'input_text', text: '图片是什么？' }, ...Array(2).fill({ type: 'input_image', image_url: `data:image/png;base64,${image.data}` })]
+        : protocol === 'anthropic' ? [{ type: 'text', text: '图片是什么？' }, ...Array(2).fill({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: image.data } })]
+        : [{ text: '图片是什么？' }, ...Array(2).fill({ inlineData: { mimeType: 'image/png', data: image.data } })];
+      assert.deepEqual(content, expected);
+    }
+    assert.deepEqual(history[0], messages[0]);
+    assert.equal(requests.length, 3);
+    await collect(provider.stream({ messages: [{ role: 'user', content: [image] }] }));
+  });
+
   test(`${protocol}: fragmented HTTP SSE, native tools, signatures and next-turn history`, async t => {
     const requests = [], executed = [], toolEvents = []; let history;
     const server = createServer(async (req, res) => {
@@ -184,11 +208,12 @@ test('Codex subscription sends account auth, stateless instructions and only ret
   const provider = make('responses', async (url, init) => { requests.push({ url, ...init }); return requests.length === 1 ? new Response('secret', { status: 401 }) : response(fixtures.responses.text); },
     { name: 'openai-codex', subscription: true, baseUrl: 'https://chatgpt.com/backend-api/codex', apiKey: undefined,
       credentials: { get: async (_signal, force) => { authCalls.push(force); return { apiKey: force ? 'renewed' : 'initial', accountId: 'account' }; } } });
-  assert.equal(await collect(provider.stream({ messages: [{ role: 'system', content: 'Rules' }, ...input] })), '回答🐱');
+  assert.equal(await collect(provider.stream({ messages: [{ role: 'system', content: 'Rules' }, ...input, { role: 'user', content: [image] }] })), '回答🐱');
   assert.deepEqual(authCalls, [undefined, true]); assert.equal(requests.length, 2);
   const body = JSON.parse(requests[1].body);
   assert.equal(body.instructions, 'Rules'); assert.equal(body.max_output_tokens, undefined); assert.equal(body.store, false);
   assert.equal(body.input.some(m => m.role === 'system'), false);
+  assert.deepEqual(body.input.at(-1).content, [{ type: 'input_image', image_url: `data:image/png;base64,${image.data}` }]);
   assert.equal(requests[1].headers['ChatGPT-Account-Id'], 'account');
   assert.equal(requests[1].headers.Authorization, 'Bearer renewed');
   assert.equal(requests[1].url, 'https://chatgpt.com/backend-api/codex/responses');

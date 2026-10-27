@@ -1,6 +1,8 @@
 import { ProviderError } from './providers/errors.js';
 import { randomUUID } from 'node:crypto';
 import { trimConversation } from './conversation.js';
+import { notionUserContent } from './notion-attachments.js';
+import { checkMessageBudget } from './multimodal.js';
 
 const ENDPOINTS = new Set([
   'createAgentThread', 'createCalendarAgentThread', 'sendEventToAgentThread',
@@ -17,17 +19,6 @@ const endpoint = path => path.split('?')[0].split('/').at(-1);
 // Incoming user text is Notion TextToken[] in the native UI. module247438.x9d
 // creates [[plainText]], while q4_ joins token[0]; annotations remain on token[1].
 // Assistant content is a different format: 20347-47c... @13388 calls text.trim().
-function validUserText(value) {
-  return typeof value === 'string' ? Boolean(value.trim())
-    : Array.isArray(value) && value.length > 0 &&
-      value.every(token => Array.isArray(token) && typeof token[0] === 'string') &&
-      value.some(token => token[0].trim().length > 0);
-}
-
-function userText(value) {
-  return typeof value === 'string' ? [[value]] : structuredClone(value);
-}
-
 function delay(ms, signal) {
   if (signal?.aborted) return Promise.resolve();
   return new Promise(resolve => {
@@ -42,12 +33,12 @@ function delay(ms, signal) {
 }
 
 /**
- * Experimental in-memory Agent Service adapter for personal text threads.
+ * Experimental in-memory Agent Service adapter for personal chat threads.
  * Fields follow cached modules 748524 / 177844 / 114427. No Notion writes occur.
  * Thread creation shape is reconstructed from inert shipped code, not a live fixture.
  */
 export class AgentMock {
-  constructor({ answer = '喵~ 这是 NotionSI 返回的固定回答。', chunkSize = 4, delayMs = 40, generateText, onError = () => {} } = {}) {
+  constructor({ answer = '喵~ 这是 NotionSI 返回的固定回答。', chunkSize = 4, delayMs = 40, generateText, readAttachments, onError = () => {} } = {}) {
     if (typeof answer !== 'string' || !answer) throw new TypeError('answer must be non-empty');
     if (!Number.isInteger(chunkSize) || chunkSize < 1) throw new TypeError('chunkSize must be positive');
     if (!Number.isFinite(delayMs) || delayMs < 0) throw new TypeError('delayMs must be non-negative');
@@ -56,6 +47,7 @@ export class AgentMock {
     this.delayMs = delayMs;
     if (generateText !== undefined && typeof generateText !== 'function') throw new TypeError('generateText must be a function');
     this.generateText = generateText;
+    this.readAttachments = readAttachments;
     this.onError = onError;
     this.sessions = new Map();
     this.listenTokens = new Map();
@@ -116,14 +108,12 @@ export class AgentMock {
       session.abort?.abort();
       return json(200, {});
     }
-    const content = request.event.content;
-    if (!Array.isArray(content) || content.length !== 1 || content[0]?.type !== 'text' ||
-        !validUserText(content[0].text)) {
-      return failure(400, 'This prototype accepts exactly one non-empty text content block.');
-    }
+    let content;
+    try { content = notionUserContent(request.event.content); }
+    catch (error) { return failure(400, error.message); }
     if (session.status.status === 'running') return failure(409, 'A mock turn is already running.');
     if(Object.hasOwn(request,'threadContext'))session.threadContext=structuredClone(request.threadContext);
-    this.startTurn(session, content[0].text, request.clientEventId);
+    this.startTurn(session, content, request.clientEventId);
     return json(200, {});
   }
 
@@ -132,11 +122,9 @@ export class AgentMock {
     if (typeof request.clientMessageId !== 'string' || !request.clientMessageId) {
       return failure(400, 'clientMessageId is required.');
     }
-    const content = request.content;
-    if (!Array.isArray(content) || content.length !== 1 || content[0]?.type !== 'text' ||
-        !validUserText(content[0].text)) {
-      return failure(400, 'This prototype accepts exactly one non-empty text content block.');
-    }
+    let content;
+    try { content = notionUserContent(request.content); }
+    catch (error) { return failure(400, error.message); }
     if (request.listenToken !== undefined && (typeof request.listenToken !== 'string' || !request.listenToken)) {
       return failure(400, 'listenToken must be a non-empty string.');
     }
@@ -178,7 +166,7 @@ export class AgentMock {
       ...(request.createdSource === undefined ? {} : { created_source: request.createdSource }),
     };
     if(Object.hasOwn(request,'threadContext'))session.threadContext=structuredClone(request.threadContext);
-    this.startTurn(session, content[0].text, request.clientMessageId);
+    this.startTurn(session, content, request.clientMessageId);
     return json(200, { thread: structuredClone(session.threadRecord) });
   }
 
@@ -217,7 +205,7 @@ export class AgentMock {
     for (const wake of session.listeners) wake();
   }
 
-  async generate(session, text, clientMessageId, signal) {
+  async generate(session, { text, files }, clientMessageId, signal) {
     const createdAt = new Date().toISOString();
     const turnId = randomUUID();
     const common = kind => ({
@@ -225,7 +213,7 @@ export class AgentMock {
       sequence: ++session.sequence, session_id: session.id,
     });
     const user = {
-      ...common('user_message'), text: userText(text), files: [], is_current_user: true,
+      ...common('user_message'), text: structuredClone(text), files: structuredClone(files), is_current_user: true,
       render_on_user_side: true, client_message_id: clientMessageId,
       ...(session.threadContext?{thread_context:structuredClone(session.threadContext)}:{}),
     };
@@ -237,9 +225,7 @@ export class AgentMock {
     session.entities.set(assistant.id, assistant);
     session.status = { status: 'running', sequence: session.sequence, pending_input: null };
     this.publish(session);
-    const plainText = typeof text === 'string' ? text : text.map(token => token[0]).join('');
-    session.history.push({ role: 'user', content: plainText });
-    session.history = trimConversation(session.history);
+    const plainText = text.map(token => token[0]).join('');
     const toolEntities=new Map();let historyUpdated=false;
     const onToolEvent=event=>{
       if(event.type==='start') {
@@ -260,6 +246,17 @@ export class AgentMock {
     };
     let failure;
     try {
+      let content = plainText;
+      if (files.length) {
+        if (!this.readAttachments) throw new ProviderError('当前会话未配置图片附件读取。');
+        const images = await this.readAttachments(files, { toolContext: session.toolContext, signal });
+        signal.throwIfAborted();
+        if (!Array.isArray(images) || images.length !== files.length) throw new ProviderError('图片附件读取不完整，请重新上传。');
+        content = [...(plainText ? [{ type: 'text', text: plainText }] : []), ...images];
+      }
+      const history = trimConversation([...session.history, { role: 'user', content }]);
+      checkMessageBudget(history);
+      session.history = history;
       const chunks = this.generateText
         ? this.generateText({ messages: structuredClone(session.history), signal,toolContext:session.toolContext,threadContext:session.threadContext,toolState:session.toolState,onToolEvent,
           onHistory:history=>{session.history=trimConversation(history);historyUpdated=true;} })

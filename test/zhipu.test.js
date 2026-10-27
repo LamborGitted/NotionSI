@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { ZhipuProvider, ZhipuError, ZHIPU_ENDPOINT, sseData } from '../src/providers/zhipu.js';
 import { AgentMock } from '../src/agent-mock.js';
 import { ClassicAdapter } from '../src/classic-adapter.js';
+import { image, png } from './helpers/image.js';
 
 const packet = (text, finish = null) => `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: text }, finish_reason: finish }] })}\r\n\r\n`;
 function streamBytes(text, size = 1) {
@@ -17,6 +18,21 @@ function streamBytes(text, size = 1) {
 const sseResponse = text => new Response(streamBytes(text), { headers: { 'content-type': 'text/event-stream; charset=utf-8' } });
 const input = [{ role: 'user', content: '你好' }];
 const collect = async stream => { const chunks = []; for await (const chunk of stream) chunks.push(chunk); return chunks; };
+
+test('Zhipu converts image-only and mixed messages and keeps image bytes outside text budgets', async () => {
+  const requests = []; let history;
+  const large = { ...image, data: Buffer.concat([png, Buffer.alloc(300000)]).toString('base64') };
+  const provider = new ZhipuProvider({ apiKey: 'test-only', model: 'glm-4.6v', fetchImpl: async (_url, init) => {
+    requests.push(JSON.parse(init.body)); return sseResponse(packet('image answer') + packet('', 'stop'));
+  } });
+  const messages = [{ role: 'user', content: [{ type: 'text', text: '看图' }, large] }];
+  await collect(provider.stream({ messages, onHistory: h => { history = h; } }));
+  await collect(provider.stream({ messages: [...history, { role: 'user', content: [image] }] }));
+  assert.deepEqual(requests[0].messages[0].content, [{ type: 'text', text: '看图' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${large.data}` } }]);
+  assert.deepEqual(requests[1].messages[0], requests[0].messages[0]);
+  assert.deepEqual(requests[1].messages.at(-1).content, [{ type: 'image_url', image_url: { url: `data:image/png;base64,${image.data}` } }]);
+  assert.deepEqual(history[0], messages[0]);
+});
 
 test('SSE handles UTF-8 split bytes, split CRLF, multiline data and missing final blank line', async () => {
   const data = ': comment\r\nevent: message\r\ndata: {"text":\r\ndata: "你好🐱"}\r\n\r\ndata: [DONE]';

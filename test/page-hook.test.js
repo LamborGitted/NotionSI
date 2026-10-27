@@ -3,14 +3,27 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { pageHookSource } from '../src/page-hook.js';
 
-function fixture(origin = 'https://app.notion.com', paths = ['/api/v3/runInferenceTranscript']) {
+function fixture(origin = 'https://app.notion.com', paths = ['/api/v3/runInferenceTranscript'], response = () => new Response('native')) {
   const messages = [], passthrough = [];
-  const nativeFetch = async (...args) => { passthrough.push(args); return new Response('native'); };
+  const nativeFetch = async (...args) => { passthrough.push(args); return response(...args); };
   const context = vm.createContext({ location: { origin, href: `${origin}/ai` }, fetch: nativeFetch,
-    URL, Request, Response, ReadableStream, TextEncoder, DOMException, __testBinding: payload => messages.push(JSON.parse(payload)) });
+    URL, Request, Response, ReadableStream, TextEncoder, TextDecoder, DOMException, AbortController, setTimeout, clearTimeout, __testBinding: payload => messages.push(JSON.parse(payload)) });
   vm.runInContext(pageHookSource({ origins: ['https://app.notion.com'], paths, binding: '__testBinding' }), context);
   return { context, messages, passthrough, nativeFetch };
 }
+
+test('only fixed native attachment signing endpoints are available through the authenticated page bridge', async () => {
+  const f = fixture('https://app.notion.com', [], () => Response.json({ url: 'https://prod-files-secure.s3.us-west-2.amazonaws.com/image' }));
+  for (const path of ['getFileContentURLForAgentThread', 'getSignedFileUrls']) {
+    const body = { spaceId: 'space', threadId: 'thread', fileId: 'image' };
+    const result = await f.context.__notionMockRouter.toolRequest({ id: path, path, body });
+    assert.equal(result.status, 200);
+    const [url, init] = f.passthrough.at(-1);
+    assert.equal(url, '/api/v3/' + path); assert.equal(init.credentials, 'same-origin'); assert.equal(init.redirect, 'error');
+    assert.deepEqual(JSON.parse(init.body), body); assert.equal(f.messages.length, 0);
+  }
+  await assert.rejects(f.context.__notionMockRouter.toolRequest({ id: 'bad', path: 'https://evil.test', body: {} }), /Invalid tool request/);
+});
 async function request(f, init = {}) {
   const pending = f.context.fetch('https://app.notion.com/api/v3/runInferenceTranscript?src=test', { method: 'POST', body: '{"traceId":"test"}', ...init });
   // Reading a cloned Request body involves a stream turn, not just a microtask.

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ProviderError } from './errors.js';
 import { endpointBase, executeCall, httpFailure, validateMessages } from './http-common.js';
 import { protocols } from './wire-protocols.js';
+import { checkMessageBudget } from '../multimodal.js';
 
 export class HttpProvider {
   #apiKey; #fetch; #systemPrompt; #credentials;
@@ -30,7 +31,7 @@ export class HttpProvider {
       for (let round = 0; round < 8; round++) {
         combined.throwIfAborted();
         const wire = preamble ? [{ role: 'system', content: preamble }, ...messages] : messages;
-        if (JSON.stringify(wire).length > 250000) throw new ProviderError('当前会话文本过长，请新建对话。');
+        checkMessageBudget(wire);
         const request = protocols[this.protocol].request(this, wire, tools);
         let auth = this.#credentials ? await this.#credentials.get(combined) : { apiKey: this.#apiKey };
         const headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...request.headers };

@@ -7,6 +7,7 @@ import { ClassicAdapter } from './classic-adapter.js';
 import { NotionNativeTools, ToolError } from './tools/notion-native.js';
 import { EditorSelection } from './editor-selection.js';
 import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from './writer-adapter.js';
+import { NotionAttachments } from './notion-attachments.js';
 
 export const NOTION_ORIGINS = ['https://app.notion.com', 'https://www.notion.so', 'https://www.notion.com'];
 export const CLASSIC_PATH = '/api/v3/runInferenceTranscript';
@@ -52,8 +53,9 @@ export class MockRouter {
       yield* provider.stream({...request,messages,onHistory,...tools?{tools}:{}});
     };
     const stream = request => reporter ? reporter.stream(request,generate) : generate(request);
-    this.classic = provider ? new ClassicAdapter({stream}) : null;
-    this.agent = new AgentMock({ ...this.options, ...(provider ? { generateText: stream } : {}), onError: message => this.log(message) });
+    this.attachments = new NotionAttachments({ request: (context, path, body, signal) => this.toolRequest(context, path, body, signal) });
+    this.classic = provider ? new ClassicAdapter({stream}, { readAttachments: (files, options) => this.attachments.read(files, options) }) : null;
+    this.agent = new AgentMock({ ...this.options, readAttachments: (files, options) => this.attachments.read(files, options), ...(provider ? { generateText: stream } : {}), onError: message => this.log(message) });
     this.writer=new WriterAdapter({generateText:stream,createSelection,agent:this.agent,log:message=>this.log(message)});
     this.onAttached = (event) => { this.install(event.sessionId, event.targetInfo).catch(error => this.log(`Hook failed: ${error.message}`)); };
     this.onBinding = (event, session) => { if (event.name === this.binding) this.onMessage(event, session).catch(error => this.log(`Bridge error: ${error.message}`)); };

@@ -133,10 +133,10 @@ npm run start:mock -- --answer "你好，这是本地回答。" --delay-ms 100
 ## 范围
 
 - 已实现经典 `runInferenceTranscript` 的固定 NDJSON step/patch 响应；智谱模式支持能识别用户文本的经典请求，空的服务端历史引用不能恢复，请使用新建普通对话。
-- 新版 Agent 支持 `personal_agent` 创建、富文本输入、发送、transcript 分页/订阅与停止。
+- 新版 Agent 支持 `personal_agent` 创建、富文本输入、发送、transcript 分页/订阅与停止。新版与经典聊天均支持图片附件、纯图片和图文混合输入；需选择支持视觉的模型，见 [图片输入](image-input.md)。
 - 编辑器支持带选区的 `runWriter`、原生预览/接受和当前进程内的撤销；范围见上文。
 - 正常结束使用 `turn_completed.stop_reason = "end_turn"` 与 idle session；Agent 订阅保持连接不代表仍在生成。
-- 日历 Agent、自定义 Agent、附件和聊天消息编辑/撤回不在此原型范围，返回明确的本地错误。
+- 日历 Agent、自定义 Agent、非图片附件和聊天消息编辑/撤回不在此原型范围，返回明确的本地错误。
 - 会话只保存在工具进程内存中，重启工具或刷新后的历史恢复未实现。开启时 transcript 接口使用本地模拟数据，适合新建测试对话。
 - 匹配的 AI 请求失败不会自动回退官方 AI。普通 Notion 请求保持原样；工具日志只输出端点与状态，不输出提示词、Cookie 或认证头。
 

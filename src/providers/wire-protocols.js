@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ProviderError } from './errors.js';
 import { jsonEvents } from './http-common.js';
+import { chatContent, imageDataUrl } from '../multimodal.js';
 
 const fail = message => { throw new ProviderError(message); };
 const functions = tools => tools?.definitions?.map(d => d.function) ?? [];
@@ -11,7 +12,7 @@ export const protocols = {
   'chat-completions': {
     request(p, messages, tools) {
       return { path: '/chat/completions', body: { model: p.model, stream: true, max_tokens: p.maxTokens,
-        messages: messages.map(({ role, content, tool_calls, tool_call_id, reasoning_content }) => ({ role, content,
+        messages: messages.map(({ role, content, tool_calls, tool_call_id, reasoning_content }) => ({ role, content: chatContent(content),
           ...(tool_calls ? { tool_calls } : {}), ...(tool_call_id ? { tool_call_id } : {}), ...(reasoning_content ? { reasoning_content } : {}) })),
         ...(functions(tools).length ? { tools: tools.definitions, tool_choice: 'auto' } : {}),
         ...(p.reasoningEffort ? { reasoning_effort: p.reasoningEffort } : {}) } };
@@ -54,7 +55,9 @@ export const protocols = {
       const input = messages.flatMap(m => {
         if (m.role === 'tool') return [{ type: 'function_call_output', call_id: m.tool_call_id, output: m.content }];
         if (m.role === 'assistant' && m.response_items) return m.response_items;
-        const items = m.content ? [{ role: m.role, content: m.content }] : [];
+        const content = Array.isArray(m.content) ? m.content.map(p => p.type === 'text'
+          ? { type: 'input_text', text: p.text } : { type: 'input_image', image_url: imageDataUrl(p) }) : m.content;
+        const items = content ? [{ role: m.role, content }] : [];
         return [...items, ...(m.tool_calls ?? []).map(c => ({ type: 'function_call', call_id: c.id, name: c.function.name, arguments: c.function.arguments }))];
       });
       // Codex subscription transport requires instructions and does not accept max_output_tokens.
@@ -99,7 +102,8 @@ export const protocols = {
         else if (role === 'assistant') content = m.anthropic_content ?? [
           ...(m.content ? [{ type: 'text', text: m.content }] : []),
           ...(m.tool_calls ?? []).map(c => ({ type: 'tool_use', id: c.id, name: c.function.name, input: JSON.parse(c.function.arguments) }))];
-        else content = [{ type: 'text', text: m.content }];
+        else content = typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content.map(p => p.type === 'text'
+          ? { type: 'text', text: p.text } : { type: 'image', source: { type: 'base64', media_type: p.mediaType, data: p.data } });
         if (converted.at(-1)?.role === role) converted.at(-1).content.push(...content);
         else converted.push({ role, content });
       }
@@ -149,7 +153,8 @@ export const protocols = {
         }
         else if (m.role === 'assistant') parts = m.gemini_parts ?? [ ...(m.content ? [{ text: m.content }] : []),
           ...(m.tool_calls ?? []).map(c => ({ functionCall: { name: c.function.name, args: JSON.parse(c.function.arguments) } }))];
-        else parts = [{ text: m.content }];
+        else parts = typeof m.content === 'string' ? [{ text: m.content }] : m.content.map(p => p.type === 'text'
+          ? { text: p.text } : { inlineData: { mimeType: p.mediaType, data: p.data } });
         if (contents.at(-1)?.role === role) contents.at(-1).parts.push(...parts); else contents.push({ role, parts });
       }
       return { path: `/models/${encodeURIComponent(p.model.replace(/^models\//, ''))}:streamGenerateContent?alt=sse`, body: {

@@ -7,7 +7,7 @@ export function installPageHook(config) {
   const nativeFetch = globalThis.fetch;
   const requests = new Map();
   const toolRequests = new Map();
-  const toolPaths = new Set(['search','syncRecordValues','saveTransactionsFanout','queryCollection']);
+  const toolPaths = new Set(['search','syncRecordValues','saveTransactionsFanout','queryCollection','getFileContentURLForAgentThread','getSignedFileUrls']);
   const counters = { intercepted: 0, completed: 0, aborted: 0, failed: 0 };
   let sequence = 0;
   let enabled = true;

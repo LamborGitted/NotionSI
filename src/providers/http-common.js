@@ -1,4 +1,5 @@
 import { ProviderError } from './errors.js';
+import { validateMessageContent } from '../multimodal.js';
 
 export function endpointBase(value) {
   let url;
@@ -69,7 +70,7 @@ export async function* jsonEvents(body, signal) {
 export function validateMessages(messages) {
   if (!Array.isArray(messages) || !messages.some(m => m?.role === 'user') || messages.some(m => !m ||
       !['system', 'user', 'assistant', 'tool'].includes(m.role) ||
-      (typeof m.content !== 'string' && !(m.role === 'assistant' && m.content === null && m.tool_calls?.length)))) {
+      !validateMessageContent(m))) {
     throw new ProviderError('没有可发送给模型的有效文本消息。');
   }
 }
