@@ -44,7 +44,7 @@ await writeFile(config, JSON.stringify({
   disableExperimentalSEAWarning: true,
   useSnapshot: false,
   useCodeCache: false,
-  assets: { 'app.mjs': join(work, 'app.mjs') },
+  assets: { 'app.mjs': join(work, 'app.mjs'), 'notion-system-prompt.txt': join(root, 'prompts', 'notion-system-prompt.txt') },
 }));
 execFileSync(process.execPath, ['--experimental-sea-config', config], { stdio: 'inherit' });
 const executable = join(output, 'NotionSI.exe');
@@ -57,4 +57,8 @@ for (const name of ['.env.example', 'system-prompt.example.txt', 'README.md', 'C
   await copyFile(join(root, name), join(output, name));
 }
 await cp(join(root, 'docs'), join(output, 'docs'), { recursive: true });
+await mkdir(join(output, 'prompts'), { recursive: true });
+for (const name of ['notion-system-prompt.txt', 'README.md']) {
+  await copyFile(join(root, 'prompts', name), join(output, 'prompts', name));
+}
 console.log(`Built ${executable}`);

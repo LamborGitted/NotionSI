@@ -1,9 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { loadLocalEnv, providerConfig, createProvider, publicConfig } from '../src/config.js';
+import { NOTION_SYSTEM_PROMPT } from '../src/system-prompt.js';
+
+test('full Notion prompt is the default without local configuration and respects available tools', () => {
+  const reference = readFileSync(new URL('../prompts/notion-system-prompt.txt', import.meta.url), 'utf8').trim();
+  assert.equal(NOTION_SYSTEM_PROMPT, reference);
+  const config = providerConfig({ env: {}, provider: 'zhipu' });
+  assert.ok(config.systemPrompt.startsWith(reference));
+  assert.match(config.systemPrompt, /No Notion tools are enabled/);
+  assert.equal(publicConfig(config).systemPromptSource, 'builtin');
+  assert.equal(publicConfig(config).systemPromptConfigured, true);
+  assert.equal(publicConfig(config).systemPromptBytes, Buffer.byteLength(config.systemPrompt));
+  assert.equal(JSON.stringify(publicConfig(config)).includes(reference), false);
+  const native = providerConfig({ env: { NOTIONSI_TOOLS: 'native' }, provider: 'zhipu' });
+  assert.ok(native.systemPrompt.startsWith(reference));
+  assert.match(native.systemPrompt, /Only tools supplied in the current request are available/);
+  assert.doesNotMatch(native.systemPrompt.slice(reference.length), /No Notion tools are enabled/);
+  assert.equal(providerConfig({ env: { NOTIONSI_SYSTEM_PROMPT_FILE: '' }, provider: 'zhipu' }).systemPrompt, config.systemPrompt);
+});
 
 test('local config respects environment overrides and never imports unrelated environment keys', () => {
   const root = mkdtempSync(join(tmpdir(), 'notionsi-config-'));
@@ -56,6 +74,7 @@ test('local system prompt is loaded from UTF-8 file, kept out of public configur
     const config = providerConfig({ env });
     assert.equal(config.systemPrompt, '仅回复测试内容。');
     assert.equal(publicConfig(config).systemPromptConfigured, true);
+    assert.equal(publicConfig(config).systemPromptSource, 'file');
     assert.equal(publicConfig(config).systemPromptBytes, Buffer.byteLength(config.systemPrompt));
     assert.equal(JSON.stringify(publicConfig(config)).includes('仅回复'), false);
     assert.equal(JSON.stringify(createProvider(config)).includes('仅回复'), false);

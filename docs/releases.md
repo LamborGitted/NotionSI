@@ -15,6 +15,8 @@ NotionSI 使用 GitHub Actions 将版本标签对应的代码打包为 Windows x
 
 需要已经安装并登录的 Windows Notion。API Key 接入不需要额外安装 Node.js；ChatGPT/Codex 订阅登录仍需官方 Codex CLI，详见 [多提供商使用指南](model-providers.md)。目前的程序为实验性原型且没有代码签名。
 
+从 0.3.1 起，完整 Notion 参考提示词已内嵌到 EXE，默认启用；无需复制开发目录的 `.env.local`。可运行 `.\NotionSI.exe config --show --attach` 确认 `systemPromptConfigured: true`、`systemPromptSource: "builtin"`。若显示 `file`，表示已有自定义文件优先覆盖；在“其他配置 → 系统提示词文件”清空路径并保存可恢复内置提示词。mock 模式显示 `none`。ZIP 内 `prompts/` 提供参考正文与来源说明；默认运行读取 EXE 内嵌资源，修改附带文本后需将其配置为自定义文件才能生效。
+
 升级时先用 `q` 回车或 Ctrl+C 退出旧路由，将新包解压到新目录再启动。配置与默认订阅凭据保存在 `%LOCALAPPDATA%\NotionSI`，无需复制旧程序目录。项目级 `.env.local`、自定义提示词及相对路径以当前工作目录为准，需要自行保留。重启会清空进程内的聊天历史和撤销记录。
 
 ## 校验下载文件
@@ -55,24 +57,24 @@ Actions 附件还包含生成的 `release-notes.md`，保留 30 天；Release �
 
 发布任务单独声明 `contents: write`，通过 GitHub 自带的 `GITHUB_TOKEN` 创建 Release；构建任务只保留读取权限。不需要添加个人访问令牌，也不需要上传任何模型密钥或本地配置。组织或仓库策略若禁止该权限，需要管理员允许工作流创建 Release。
 
-当前版本 `0.3.0` 的版本信息和 CHANGELOG 已整理；代码提交并推送后，只需在那个提交上创建和推送 `v0.3.0`，即可发布当前代码。
+每次发布都要让版本标签与代码中的版本信息一致。当前包版本为 `0.3.1`；在包含该版本和更新说明的提交上推送 `v0.3.1` 即可触发发布，已存在的标签无需重复创建。
 
 ## 以后如何发布新版本
 
-以下以将来发布 `0.3.1` 为例；只有打算发布时才执行最后的标签推送。
+以下以将来发布 `0.3.2` 为例；只有打算发布时才执行最后的标签推送。
 
 1. 在干净工作区更新代码，使用 npm 同步修改包版本及锁文件，但暂不创建标签：
 
 ```powershell
-npm version 0.3.1 --no-git-tag-version
+npm version 0.3.2 --no-git-tag-version
 ```
 
-2. 将 CHANGELOG 的“未发布”内容移入 `## 0.3.1 — YYYY-MM-DD`，填写真实日期、更新内容、升级方法和限制；同步 README 与开发状态中的当前版本。
+2. 将 CHANGELOG 的“未发布”内容移入 `## 0.3.2 — YYYY-MM-DD`，填写真实日期、更新内容、升级方法和限制；同步 README 与开发状态中的当前版本。
 3. 本地验证，并预览将来发布到 GitHub 的正文：
 
 ```powershell
 npm test
-node scripts/prepare-release.js v0.3.1 .build/release-notes.md
+node scripts/prepare-release.js v0.3.2 .build/release-notes.md
 Get-Content .build/release-notes.md
 ```
 
@@ -80,10 +82,10 @@ Get-Content .build/release-notes.md
 
 ```powershell
 git add package.json package-lock.json CHANGELOG.md README.md docs/project-status.md
-git commit -m "Prepare NotionSI v0.3.1"
+git commit -m "Prepare NotionSI v0.3.2"
 git push origin main
-git tag -a v0.3.1 -m "NotionSI v0.3.1"
-git push origin v0.3.1
+git tag -a v0.3.2 -m "NotionSI v0.3.2"
+git push origin v0.3.2
 ```
 
 5. 到 [Actions](https://github.com/LamborGitted/NotionSI/actions/workflows/build-executable.yml) 查看这次标签运行。`build` 和 `release` 都成功后，到 [Releases](https://github.com/LamborGitted/NotionSI/releases) 确认版本说明、ZIP 与校验文件。

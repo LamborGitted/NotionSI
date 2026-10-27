@@ -179,7 +179,7 @@ export async function runConfigTui({ env = process.env, path = userConfigPath({ 
     async function advanced() {
       const changes = {};
       const fields = [ { key: 'NOTIONSI_TOOLS', label: 'Notion 工具', options: ['off', 'native'] },
-        { key: 'NOTIONSI_LOG_CONTENT', label: '终端回复正文', options: ['1', '0'] }, { key: 'NOTIONSI_SYSTEM_PROMPT_FILE', label: '系统提示词文件' },
+        { key: 'NOTIONSI_LOG_CONTENT', label: '终端回复正文', options: ['1', '0'] }, { key: 'NOTIONSI_SYSTEM_PROMPT_FILE', label: '系统提示词文件（默认内置完整提示词）' },
         { key: 'NOTION_PATH', label: 'Notion 安装路径' },
         ...(active && active !== 'mock' ? [ ...(active !== 'openai-codex' ? [{ key: `${prefixFor(active)}_MAX_TOKENS`, label: '输出 Token 上限' }] : []),
           { key: `${prefixFor(active)}_TIMEOUT_MS`, label: '模型请求超时（毫秒）' } ] : []) ];

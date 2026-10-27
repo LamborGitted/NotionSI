@@ -44,15 +44,17 @@ GLM-5.3 强制开启思考，配置会自动规范为 `thinking=enabled`，默�
 
 ## 系统提示词
 
-将 `system-prompt.example.txt` 复制为 `system-prompt.local.txt`，编辑内容，并在 `.env.local` 中增加：
+源码版和 EXE 默认使用完整 Notion 参考提示词，并追加当前 NotionSI 能力约束。EXE 已将提示词内嵌为资源，不依赖当前工作目录或 `.env.local`；ZIP 的 `prompts/notion-system-prompt.txt` 提供同一份参考正文。
+
+需要替换默认提示词时，可将精简示例 `system-prompt.example.txt` 复制为 `system-prompt.local.txt`，编辑内容，并在 `.env.local` 中增加，或在交互配置的“其他配置 → 系统提示词文件”填写文件路径：
 
 ```dotenv
 NOTIONSI_SYSTEM_PROMPT_FILE=system-prompt.local.txt
 ```
 
-路径相对于启动时的工作目录。文件必须为非空 UTF-8 文本，最多 64 KiB。启动时读取，修改后需要退出路由进程并重新启动；重启会清除本进程保存的会话历史。未配置此项时不注入系统提示词，mock 模式忽略此项。
+自定义路径相对于启动时的工作目录。文件必须为非空 UTF-8 文本，最多 64 KiB；无效路径会报错，不会静默回退。启动时读取，修改后需要退出路由进程并重新启动；重启会清除本进程保存的会话历史。未配置或配置值留空时使用内置完整提示词，mock 模式忽略此项。用户配置的优先级高于 `.env.local`；若要恢复默认，清空交互配置中的提示词文件路径并保存。
 
-每次请求会在聊天历史前添加一条 `system` 消息，不写入 Notion transcript，也不受最近 40 条历史裁剪影响。`npm run config:show` 只显示是否配置及字节数，不输出提示词正文。`*.local.txt` 已被忽略。连通测试也会使用此提示词，因此强制固定回复的提示词可能改变测试输出。
+每次请求会在聊天历史前添加系统指令，并按模型协议转换，不写入 Notion transcript，也不受最近 40 条历史裁剪影响。`npm run config:show` 或 `.\NotionSI.exe config --show --attach` 显示是否加载、字节数及 `systemPromptSource`（`builtin` / `file` / `none`），不输出正文。`*.local.txt` 已被忽略。连通测试也会使用此提示词，因此强制固定回复的提示词可能改变测试输出。
 
 示例是为当前文本能力编写的简短提示词。社区提取的原始提示词与工具适配边界见 [说明](system-prompt-and-tools.md)。描述工具的提示词不会创建工具；`NOTIONSI_TOOLS=native` 时会发送实际工具 schema，并执行调用与回传结果。未启用时只提供文本对话。
 

@@ -8,7 +8,7 @@
 
 NotionSI 通过本机 Chrome DevTools Protocol（CDP）临时注入请求钩子，无需修改 ASAR 或安装证书。模型层使用自行实现的 HTTP/SSE 适配，支持 OpenAI、Anthropic、Gemini、智谱及多种兼容服务，并提供实验性的 **ChatGPT/Codex 订阅接入**；不依赖 Pi 或模型 SDK。
 
-> 当前版本为 **0.3.0，实验性原型**。实机验证环境：Windows / Scoop Notion 7.40.1。启动器支持普通 Windows 安装与自定义目录，其他安装版本仍需验证；Notion 更新可能导致协议适配失效。本项目为独立社区项目。
+> 当前版本为 **0.3.1，实验性原型**。实机验证环境：Windows / Scoop Notion 7.40.1。启动器支持普通 Windows 安装与自定义目录，其他安装版本仍需验证；Notion 更新可能导致协议适配失效。本项目为独立社区项目。
 
 ## 功能
 
@@ -68,11 +68,11 @@ npm start -- --provider mock
 - **手动构建分支**：在 **Actions → Build and release Windows executable → Run workflow** 选择 `main`，只生成 Actions 附件，不发布 Release。附件保留 30 天。
 - **普通分支推送和 PR**：继续由 CI 执行测试，不创建 Release。
 
-版本标签必须与 `package.json`、锁文件和 CHANGELOG 一致。当前 `0.3.0` 的版本信息已准备好；在包含发布流程的提交上创建尚未使用的标签即可：
+版本标签必须与 `package.json`、锁文件和 CHANGELOG 一致。以下为当前版本的标签示例，已存在的标签无需重复创建：
 
 ```powershell
-git tag -a v0.3.0 -m "NotionSI v0.3.0"
-git push origin v0.3.0
+git tag -a v0.3.1 -m "NotionSI v0.3.1"
+git push origin v0.3.1
 ```
 
 以后发布新版本的完整操作、预发布标签、失败排查与校验方法见 [版本发布指南](docs/releases.md)。自动发布使用 GitHub 自带的 `GITHUB_TOKEN`，无需添加个人 Token。
@@ -96,7 +96,7 @@ npm run build:exe
 npm run test:exe
 ```
 
-输出目录为 `dist/NotionSI-win-x64/`。构建使用 esbuild 汇总 ESM 源码，再通过 Node.js SEA 与 postject 将代码嵌入当前 Node.js 运行时；只复制配置示例和公开文档，不复制开发目录中的 `.env.local`。当前可执行文件未做代码签名。
+输出目录为 `dist/NotionSI-win-x64/`。构建使用 esbuild 汇总 ESM 源码，再通过 Node.js SEA 与 postject 将代码和完整默认提示词嵌入当前 Node.js 运行时；附带配置示例、公开文档与参考提示词，不复制开发目录中的 `.env.local`。当前可执行文件未做代码签名。
 
 ## 统一入口
 
@@ -133,10 +133,12 @@ node index.js start --no-content-log
 | `NOTIONSI_PROVIDER` | 下表中的提供商名称；未配置时为 `mock` |
 | `NOTION_PATH` | Notion.exe 或安装目录，可由 `--notion` 覆盖 |
 | `NOTIONSI_TOOLS` | `off`（默认）或 `native`；开启页面与数据库工具 |
-| `NOTIONSI_SYSTEM_PROMPT_FILE` | 自定义 UTF-8 系统提示词文件，最多 64 KiB |
+| `NOTIONSI_SYSTEM_PROMPT_FILE` | 可选自定义 UTF-8 系统提示词文件，最多 64 KiB；留空使用内置完整 Notion 参考提示词 |
 | `NOTIONSI_LOG_CONTENT` | `1`（默认）显示回复正文；`0` 仅显示进度 |
 
 Notion 自动查找覆盖 `%LOCALAPPDATA%/Programs/Notion`、`%LOCALAPPDATA%/Notion`、Program Files 和用户/全局 Scoop 目录。显式路径无效时直接报错。路径相对于启动工作目录，不展开 `~`、`%LOCALAPPDATA%` 等变量；`attach` 无需安装路径。
+
+源码版与 EXE 默认使用相同的完整参考提示词，EXE 中已内嵌，无需复制 `.env.local` 或本地提示词。运行 `.\NotionSI.exe config --show --attach` 可查看 `systemPromptSource`：`builtin` 为内置，`file` 为自定义文件，`none` 为 mock。自定义路径优先覆盖；清空“其他配置 → 系统提示词文件”并保存可恢复内置默认值。实际工具能力仍取决于工具开关与当前请求的 schema，详见 [提示词说明](docs/system-prompt-and-tools.md)。
 
 ### 模型提供商
 

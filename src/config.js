@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { getProvider, providerEnvKeys } from './providers/index.js';
 import { readUserConfig, userConfigPath } from './user-config.js';
+import { defaultSystemPrompt } from './system-prompt.js';
 
 export const CONFIG_KEYS = Object.freeze(['NOTION_PATH', 'NOTIONSI_LOG_CONTENT', 'NOTIONSI_PROVIDER', 'NOTIONSI_TOOLS', 'NOTIONSI_SYSTEM_PROMPT_FILE', ...providerEnvKeys]);
 
@@ -41,8 +42,11 @@ export function providerConfig({ env = process.env, provider = env.NOTIONSI_PROV
   const logContent = ['1', 'true'].includes(contentSetting);
   const tools = env.NOTIONSI_TOOLS ?? 'off';
   if (!['off', 'native'].includes(tools)) throw new Error('NOTIONSI_TOOLS must be off or native.');
+  const systemPromptSource = provider === 'mock' ? 'none' : env.NOTIONSI_SYSTEM_PROMPT_FILE?.trim() ? 'file' : 'builtin';
   return { ...settings, provider, tools, logContent,
-    systemPrompt: provider === 'mock' ? '' : loadSystemPrompt(env.NOTIONSI_SYSTEM_PROMPT_FILE) };
+    systemPromptSource,
+    systemPrompt: systemPromptSource === 'none' ? '' : systemPromptSource === 'file'
+      ? loadSystemPrompt(env.NOTIONSI_SYSTEM_PROMPT_FILE) : defaultSystemPrompt({ tools }) };
 }
 
 export function createProvider(config) {
@@ -52,5 +56,6 @@ export function createProvider(config) {
 export function publicConfig(config) {
   return { provider: config.provider, logContent: config.logContent, tools: config.tools,
     ...getProvider(config.provider).publicConfig(config),
-    systemPromptConfigured: Boolean(config.systemPrompt), systemPromptBytes: Buffer.byteLength(config.systemPrompt || '', 'utf8') };
+    systemPromptConfigured: Boolean(config.systemPrompt), systemPromptSource: config.systemPromptSource,
+    systemPromptBytes: Buffer.byteLength(config.systemPrompt || '', 'utf8') };
 }
