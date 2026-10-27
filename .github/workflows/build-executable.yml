@@ -1,4 +1,4 @@
-name: Build Windows executable
+name: Build and release Windows executable
 
 on:
   push:
@@ -8,17 +8,31 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 15
+    outputs:
+      prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           architecture: x64
           cache: npm
+      - name: Validate release version and prepare notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/prepare-release.js "$env:RELEASE_TAG" dist/release-notes.md
       - run: npm ci
       - run: npm test
       - run: npm run build:exe
@@ -35,5 +49,42 @@ jobs:
           path: |
             dist/NotionSI-win-x64.zip
             dist/NotionSI-win-x64.zip.sha256
+            dist/release-notes.md
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: NotionSI-win-x64
+          path: dist
+      - name: Publish GitHub Release with download files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          IS_PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        shell: bash
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum --check NotionSI-win-x64.zip.sha256
+          flags=()
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          release_url=$(gh release create "$RELEASE_TAG" \
+            NotionSI-win-x64.zip \
+            NotionSI-win-x64.zip.sha256 \
+            --verify-tag \
+            --title "NotionSI $RELEASE_TAG" \
+            --notes-file release-notes.md \
+            "${flags[@]}")
+          printf 'Release published: %s\n' "$release_url" >> "$GITHUB_STEP_SUMMARY"

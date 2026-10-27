@@ -8,7 +8,7 @@
 
 NotionSI 通过本机 Chrome DevTools Protocol（CDP）临时注入请求钩子，无需修改 ASAR 或安装证书。模型层使用自行实现的 HTTP/SSE 适配，支持 OpenAI、Anthropic、Gemini、智谱及多种兼容服务，并提供实验性的 **ChatGPT/Codex 订阅接入**；不依赖 Pi 或模型 SDK。
 
-> 当前版本为 **0.2.0，实验性原型**。实机验证环境：Windows / Scoop Notion 7.40.1。启动器支持普通 Windows 安装与自定义目录，其他安装版本仍需验证；Notion 更新可能导致协议适配失效。本项目为独立社区项目。
+> 当前版本为 **0.3.0，实验性原型**。实机验证环境：Windows / Scoop Notion 7.40.1。启动器支持普通 Windows 安装与自定义目录，其他安装版本仍需验证；Notion 更新可能导致协议适配失效。本项目为独立社区项目。
 
 ## 功能
 
@@ -58,23 +58,26 @@ npm start
 npm start -- --provider mock
 ```
 
-## Windows 可执行程序与自动打包
+## Windows 可执行程序与自动发布
 
-仓库提供 `.github/workflows/build-executable.yml`，在以下情况构建 **Windows x64** 便携包：
+直接前往 [Releases](https://github.com/LamborGitted/NotionSI/releases) 下载 **NotionSI-win-x64.zip** 和可选的 `.sha256` 校验文件。GitHub 自动附带的 **Source code** 是源码，里面没有 EXE。
 
-- 推送以 `v` 开头的标签，例如 `v0.2.0`。
-- 在 GitHub 的 **Actions → Build Windows executable → Run workflow** 中手动触发。首次使用时先将流程文件提交并推送到默认分支。
+仓库提供 `.github/workflows/build-executable.yml`：
 
-流程执行 `npm ci`、全部自动测试、可执行程序构建，以及脱离源码目录的冒烟检查，再生成 ZIP 和 SHA-256 校验文件。成功后在该次运行的 **Artifacts → NotionSI-win-x64** 下载，产物保留 30 天；不会自动创建 GitHub Release。普通分支推送和 PR 继续由原有 CI 测试。
+- **推送版本标签**（例如 `v0.3.0`）：校验版本信息，运行全部自动测试，构建 Windows x64 EXE 并完成独立运行检查，生成 ZIP 和 SHA-256 文件，然后自动创建 Release 并上传这两个下载文件。发布说明来自 CHANGELOG 对应版本。
+- **手动构建分支**：在 **Actions → Build and release Windows executable → Run workflow** 选择 `main`，只生成 Actions 附件，不发布 Release。附件保留 30 天。
+- **普通分支推送和 PR**：继续由 CI 执行测试，不创建 Release。
 
-标签触发示例（先将代码提交并推送到 GitHub，标签名需尚未使用）：
+版本标签必须与 `package.json`、锁文件和 CHANGELOG 一致。当前 `0.3.0` 的版本信息已准备好；在包含发布流程的提交上创建尚未使用的标签即可：
 
 ```powershell
-git tag v0.2.0
-git push origin v0.2.0
+git tag -a v0.3.0 -m "NotionSI v0.3.0"
+git push origin v0.3.0
 ```
 
-解压下载的产物和其中的 `NotionSI-win-x64.zip`，在包含 `NotionSI.exe` 的目录打开 PowerShell：
+以后发布新版本的完整操作、预发布标签、失败排查与校验方法见 [版本发布指南](docs/releases.md)。自动发布使用 GitHub 自带的 `GITHUB_TOKEN`，无需添加个人 Token。
+
+解压 `NotionSI-win-x64.zip`，在包含 `NotionSI.exe` 的目录打开 PowerShell：
 
 ```powershell
 .\NotionSI.exe config
@@ -204,6 +207,7 @@ docs/              使用指南、协议与兼容说明
 - [编辑器 AI](docs/editor-ai.md)
 - [系统提示词与工具](docs/system-prompt-and-tools.md)
 - [更新记录](CHANGELOG.md)
+- [版本发布与下载指南](docs/releases.md)
 
 ## 许可证
 
