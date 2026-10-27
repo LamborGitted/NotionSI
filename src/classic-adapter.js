@@ -2,17 +2,18 @@ import { ProviderError } from './providers/errors.js';
 import { randomUUID } from 'node:crypto';
 import { trimConversation } from './conversation.js';
 import { checkMessageBudget } from './multimodal.js';
+import { notionText } from './notion-text.js';
 
 function textValue(value) {
   if (typeof value === 'string') return value;
-  if (Array.isArray(value) && value.every(token => Array.isArray(token) && typeof token[0] === 'string')) return value.map(token => token[0]).join('');
+  if (Array.isArray(value) && value.every(token => Array.isArray(token) && typeof token[0] === 'string')) return notionText(value);
   if (value && !Array.isArray(value) && typeof value === 'object') return textValue(value.text);
   return undefined;
 }
 
 /** A partial transcript cannot bootstrap old history. */
 export class ClassicAdapter {
-  constructor(provider, { readAttachments } = {}) { this.provider = provider; this.readAttachments = readAttachments; this.histories = new Map(); this.active = new Set(); this.toolStates=new Map(); }
+  constructor(provider, { readAttachments, persistReply } = {}) { this.provider = provider; this.readAttachments = readAttachments; this.persistReply = persistReply; this.histories = new Map(); this.active = new Set(); this.toolStates=new Map(); }
   async *stream(request, { signal, toolContext } = {}) {
     const key = JSON.stringify([request?.spaceId, request?.threadId]);
     if (this.active.has(key)) throw new Error('该经典对话已有请求正在生成。');
@@ -44,14 +45,20 @@ export class ClassicAdapter {
       const messages = trimConversation([...history, { role: 'user', content }]);
       checkMessageBudget(messages);
       let updatedHistory;
-      for await (const text of this.provider.stream({ messages, signal,toolContext,toolState:this.toolStates.get(key),onHistory:history=>{updatedHistory=history;} })) {
+      for await (const text of this.provider.stream({ messages, signal,toolContext,threadContext:request.threadContext,toolState:this.toolStates.get(key),onHistory:history=>{updatedHistory=history;} })) {
         signal?.throwIfAborted();
         accumulated += text;
         yield patch ? { type: 'patch', v: [{ o: 'x', p: '/s/0/value', v: text }] } : step(accumulated);
       }
       signal?.throwIfAborted();
+      const finalStep = step(accumulated, true);
+      if (this.persistReply) {
+        const recordMap = await this.persistReply({ request, step: finalStep, toolContext, signal });
+        signal?.throwIfAborted();
+        yield { type: 'record-map', recordMap };
+      }
       this.histories.set(key, trimConversation(updatedHistory ?? [...messages, { role: 'assistant', content: accumulated }]));
-      yield patch ? { type: 'patch-sync', data: { s: [step(accumulated, true)] } } : step(accumulated, true);
+      yield patch ? { type: 'patch-sync', data: { s: [finalStep] } } : finalStep;
     } catch (error) {
       if (!signal?.aborted) yield { id: randomUUID(), type: 'error', traceId,
         message: error instanceof ProviderError ? error.message : '模型生成失败，请检查本地工具配置。', errorCode: 502 };

@@ -6,13 +6,15 @@
 
 | 入口 | 响应与处理 |
 | --- | --- |
-| `runInferenceTranscript` | 经典 NDJSON transcript，包含固定 step、压缩 patch 与最终同步 |
+| `runInferenceTranscript` | 经典 NDJSON transcript，包含固定 step、压缩 patch、回复保存、record-map 与最终同步 |
 | `createAgentThread` / `sendEventToAgentThread` | personal Agent 创建、富文本用户消息、发送与中断 |
 | `getThreadTranscript` / `listenToThreadTranscript` | 本地分页、订阅、增量实体与结束状态 |
 | `runWriter` | 选区编辑的 JSON 响应、原生差异预览与接受 |
 | `undoAgentServiceTurn` | 仅接管本进程创建且带专用标识的 Writer 撤销 |
 
 正常结束需要正确的业务终态；仅收到网络 EOF 不视为成功。新版 Agent 使用 `turn_completed.stop_reason = "end_turn"` 和 idle session。工具状态为 Notion 富文本数组，具体说明见 [工具卡片协议](tool-card-protocol.md)。
+
+经典聊天另有持久化要求：当前客户端模块 691115 的 `runFromStep` 在结束时清空 `temporarySteps`，`patch-sync` 仍然只更新该临时区。NotionSI 因此在完整生成后，通过当前登录会话将回复写成 `thread_message` 并加入对应 thread 的 `messages`。验证原用户消息归属，再提交单次事务、回读服务端版本与权限，最后依次发送 `record-map`、最终同步和 EOF；原生客户端会等待 record-map 应用完成再清理临时内容。固定 mock 与模型提供商走同一保存路径，与页面工具开关独立。取消或模型断流不保存未完成回复，保存失败不返回成功终态，也不自动重试不确定的写入。
 
 智谱端使用 Chat Completions SSE。`src/providers/zhipu.js` 处理流式正文、思考、工具分片、鉴权/限流/断流与取消；`src/router.js` 负责协议转换及页面工具执行上下文。模型服务端点由 profile 显式指定。
 

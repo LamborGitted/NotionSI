@@ -3,8 +3,9 @@ import { randomUUID } from 'node:crypto';
 export const DEFAULT_ANSWER = '这是 NotionSI 的本地固定回答。请求已被接管，生成现已完成。';
 
 /**
- * Minimal classic runInferenceTranscript response, reconstructed from the
- * cached client. It deliberately emits no title, record map, or server write.
+ * Standalone classic wire fixture, reconstructed from the cached client.
+ * Production classic chat uses ClassicAdapter with persisted thread_message
+ * records and a record-map before EOF; these frames alone are transient UI.
  *
  * Evidence: f_000149.js @277107 and f_000393.js @52028 construct
  * agent-inference steps with id/value/traceId/startedAt/finishedAt.

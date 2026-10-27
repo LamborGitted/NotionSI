@@ -77,6 +77,22 @@ test('malformed request fails locally instead of falling back to official AI', a
   assert.equal(f.passthrough.length, 0);
 });
 
+test('bridge captures the sending page URL before asynchronous body parsing and leaves native body intact', async () => {
+  const f = fixture();
+  const pageUrl = 'https://app.notion.com/p/8e89b7b4364149bfafce3edf90e4cf94?t=chat';
+  f.context.location.href = pageUrl;
+  const pending = f.context.fetch('https://app.notion.com/api/v3/runInferenceTranscript', { method: 'POST', body: '{"traceId":"snapshot"}' });
+  f.context.location.href = 'https://app.notion.com/ai';
+  for (let i = 0; i < 50 && !f.messages.length; i++) await new Promise(resolve => setTimeout(resolve, 2));
+  const message = f.messages[0];
+  assert.equal(message.pageUrl, pageUrl);
+  assert.deepEqual(message.body, { traceId: 'snapshot' });
+  const bridge = f.context.__notionMockRouter;
+  bridge.receive({ id: message.id, type: 'headers', status: 200, headers: {} });
+  bridge.receive({ id: message.id, type: 'end' });
+  assert.equal(await (await pending).text(), '');
+});
+
 test('uninstall restores fetch and disables any saved wrapper reference', async () => {
   const f = fixture(), wrapper = f.context.fetch;
   f.context.__notionMockRouter.uninstall();

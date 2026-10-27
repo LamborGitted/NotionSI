@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { trimConversation } from './conversation.js';
 import { notionUserContent } from './notion-attachments.js';
 import { checkMessageBudget } from './multimodal.js';
+import { notionText } from './notion-text.js';
 
 const ENDPOINTS = new Set([
   'createAgentThread', 'createCalendarAgentThread', 'sendEventToAgentThread',
@@ -112,7 +113,7 @@ export class AgentMock {
     try { content = notionUserContent(request.event.content); }
     catch (error) { return failure(400, error.message); }
     if (session.status.status === 'running') return failure(409, 'A mock turn is already running.');
-    if(Object.hasOwn(request,'threadContext'))session.threadContext=structuredClone(request.threadContext);
+    session.threadContext=structuredClone(request.threadContext);
     this.startTurn(session, content, request.clientEventId);
     return json(200, {});
   }
@@ -165,7 +166,7 @@ export class AgentMock {
       data: { agent_provider: provider, agent_service_browser_enabled: false },
       ...(request.createdSource === undefined ? {} : { created_source: request.createdSource }),
     };
-    if(Object.hasOwn(request,'threadContext'))session.threadContext=structuredClone(request.threadContext);
+    session.threadContext=structuredClone(request.threadContext);
     this.startTurn(session, content, request.clientMessageId);
     return json(200, { thread: structuredClone(session.threadRecord) });
   }
@@ -225,7 +226,7 @@ export class AgentMock {
     session.entities.set(assistant.id, assistant);
     session.status = { status: 'running', sequence: session.sequence, pending_input: null };
     this.publish(session);
-    const plainText = text.map(token => token[0]).join('');
+    const plainText = notionText(text);
     const toolEntities=new Map();let historyUpdated=false;
     const onToolEvent=event=>{
       if(event.type==='start') {

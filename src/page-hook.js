@@ -61,6 +61,7 @@ export function installPageHook(config) {
   };
   function send(event) { globalThis[config.binding](JSON.stringify(event)); }
   async function hookedFetch(input, init) {
+    const pageUrl = location.href;
     let url;
     try { url = new URL(input instanceof Request ? input.url : String(input), location.href); }
     catch { return nativeFetch.call(this, input, init); }
@@ -99,7 +100,7 @@ export function installPageHook(config) {
       if (request.signal.aborted) return abort();
       counters.intercepted++;
       state.last = { endpoint: url.pathname, outcome: 'streaming' };
-      try { send({ type: 'request', id, path: url.pathname, body }); }
+      try { send({ type: 'request', id, path: url.pathname, body, pageUrl }); }
       catch (error) { controller.error(error); reject(error); cleanup(); }
     });
   }

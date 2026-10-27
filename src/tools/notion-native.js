@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { notionText } from '../notion-text.js';
 
 export class ToolError extends Error {
   constructor(message) { super(message); this.name = 'ToolError'; }
 }
 const fail = message => { throw new ToolError(message); };
-const plain = value => Array.isArray(value) ? value.map(t => t[0] || '').join('') : '';
+const plain = notionText;
 export function record(entry) {
   let value = entry;
   while (value && typeof value === 'object' && value.value) value = value.value;

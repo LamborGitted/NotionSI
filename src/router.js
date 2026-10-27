@@ -1,13 +1,15 @@
 import { ProviderError } from './providers/errors.js';
 import { randomBytes } from 'node:crypto';
 import { pageHookSource } from './page-hook.js';
-import { DEFAULT_ANSWER, streamClassicFrames } from './mock-protocol.js';
+import { DEFAULT_ANSWER } from './mock-protocol.js';
 import { AgentMock } from './agent-mock.js';
 import { ClassicAdapter } from './classic-adapter.js';
+import { ClassicTranscript } from './classic-transcript.js';
 import { NotionNativeTools, ToolError } from './tools/notion-native.js';
 import { EditorSelection } from './editor-selection.js';
 import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from './writer-adapter.js';
 import { NotionAttachments } from './notion-attachments.js';
+import { chatContext, CHAT_CONTEXT_INSTRUCTIONS } from './chat-context.js';
 
 export const NOTION_ORIGINS = ['https://app.notion.com', 'https://www.notion.so', 'https://www.notion.com'];
 export const CLASSIC_PATH = '/api/v3/runInferenceTranscript';
@@ -49,12 +51,26 @@ export class MockRouter {
             tools.instructions+='当前选区修改仅开放 update-selection；不要用页面更新工具绕过选区边界。';
           }
         } catch(error) {throw new ProviderError(error?.name==='ToolError'?error.message:'无法读取编辑器选区。');}
+      } else if (!request.editorTask) {
+        const context = await chatContext({tools,threadContext:request.threadContext,toolContext:request.toolContext,messages,signal:request.signal});
+        if (context) {
+          const last=messages.findLastIndex(m=>m.role==='user');
+          // Remove only the two transient messages when a provider returns its
+          // tool-loop history. Read fresh context on every subsequent turn.
+          onHistory=history=>request.onHistory?.(history.filter((_,index)=>index!==last&&index!==last+1));
+          messages=[...messages.slice(0,last),{role:'system',content:CHAT_CONTEXT_INSTRUCTIONS},
+            {role:'user',content:JSON.stringify({notionContext:context})},...messages.slice(last)];
+        }
       }
       yield* provider.stream({...request,messages,onHistory,...tools?{tools}:{}});
     };
     const stream = request => reporter ? reporter.stream(request,generate) : generate(request);
     this.attachments = new NotionAttachments({ request: (context, path, body, signal) => this.toolRequest(context, path, body, signal) });
-    this.classic = provider ? new ClassicAdapter({stream}, { readAttachments: (files, options) => this.attachments.read(files, options) }) : null;
+    const transcript = new ClassicTranscript({ request: (context, path, body, signal) => this.toolRequest(context, path, body, signal) });
+    this.classic = new ClassicAdapter(provider ? {stream} : {stream:({signal})=>this.agent.fixedText(signal ?? new AbortController().signal)}, {
+      readAttachments: (files, options) => this.attachments.read(files, options),
+      persistReply: options => transcript.persist(options),
+    });
     this.agent = new AgentMock({ ...this.options, readAttachments: (files, options) => this.attachments.read(files, options), ...(provider ? { generateText: stream } : {}), onError: message => this.log(message) });
     this.writer=new WriterAdapter({generateText:stream,createSelection,agent:this.agent,log:message=>this.log(message)});
     this.onAttached = (event) => { this.install(event.sessionId, event.targetInfo).catch(error => this.log(`Hook failed: ${error.message}`)); };
@@ -178,13 +194,12 @@ export class MockRouter {
       if (JSON.stringify(message.body).length > 1024 * 1024) throw new Error('Mock request too large.');
       this.log(`Intercept ${message.path} (${this.provider?.name ?? 'local fixed response'}).`);
       let response;
-      const toolContext={session,context,spaceId:message.body?.spaceId,threadId:message.body?.threadId};
+      const toolContext={session,context,spaceId:message.body?.spaceId,threadId:message.body?.threadId,pageUrl:message.pageUrl};
       if(message.path===WRITER_PATH||message.path===WRITER_UNDO_PATH) {
         response=await this.writer.handle(message.path,message.body,{signal:controller.signal,toolContext});
       } else if (message.path === CLASSIC_PATH) {
         response = { status: 200, headers: { 'content-type': 'application/x-ndjson' },
-          frames: this.classic ? this.classic.stream(message.body, { signal: controller.signal, toolContext })
-            : streamClassicFrames(message.body, { ...this.options, signal: controller.signal }) };
+          frames: this.classic.stream(message.body, { signal: controller.signal, toolContext }) };
       } else if (AGENT_PATHS.includes(message.path) && this.agent.handles(message.path)) {
         response = await this.agent.handle(message.path, message.body, { signal: controller.signal, toolContext });
       } else { response = { status: 501, headers: { 'content-type': 'application/json' }, body: { name: 'LocalMockUnsupported', message: 'This AI operation is not supported by the local mock.' } }; }
