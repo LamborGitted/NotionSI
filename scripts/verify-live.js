@@ -1,8 +1,8 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { Cdp, loopbackEndpoint } from '../src/cdp.mjs';
-import { NOTION_ORIGINS } from '../src/router.mjs';
-import { DEFAULT_ANSWER } from '../src/mock-protocol.mjs';
+import { Cdp, loopbackEndpoint } from '../src/cdp.js';
+import { NOTION_ORIGINS } from '../src/router.js';
+import { DEFAULT_ANSWER } from '../src/mock-protocol.js';
 
 const args = process.argv.slice(2);
 function option(name, fallback) {

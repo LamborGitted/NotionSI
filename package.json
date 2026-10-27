@@ -1,5 +1,5 @@
 {
-  "name": "notion-ai-mock-router",
+  "name": "notionsi",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -7,21 +7,24 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node src/cli.mjs",
-    "attach": "node src/cli.mjs --attach",
-    "start:zhipu": "node src/cli.mjs --provider zhipu",
-    "start:coding-cn": "node src/cli.mjs --provider zhipu --profile coding-cn",
-    "attach:coding-cn": "node src/cli.mjs --attach --provider zhipu --profile coding-cn",
-    "check:coding-cn": "node scripts/check-zhipu.mjs --profile coding-cn",
-    "attach:zhipu": "node src/cli.mjs --attach --provider zhipu",
-    "start:mock": "node src/cli.mjs --provider mock",
-    "config": "node src/cli.mjs --check-config",
-    "check:zhipu": "node scripts/check-zhipu.mjs",
-    "test": "node --test test/*.test.mjs",
-    "verify": "node scripts/verify-live.mjs",
-    "verify:editor": "node scripts/verify-editor.mjs"
+    "start": "node index.js",
+    "attach": "node index.js attach",
+    "config": "node index.js config",
+    "check": "node index.js check",
+    "start:zhipu": "node index.js start --provider zhipu",
+    "start:coding-cn": "node index.js start --provider zhipu --profile coding-cn",
+    "attach:coding-cn": "node index.js attach --provider zhipu --profile coding-cn",
+    "check:coding-cn": "node index.js check --provider zhipu --profile coding-cn",
+    "attach:zhipu": "node index.js attach --provider zhipu",
+    "start:mock": "node index.js start --provider mock",
+    "check:zhipu": "node index.js check --provider zhipu",
+    "test": "node --test test/*.test.js",
+    "verify": "node index.js verify",
+    "verify:editor": "node index.js verify-editor"
   },
   "dependencies": {
     "marked": "15.0.12"
-  }
+  },
+  "description": "Route Notion desktop AI requests to configurable model providers.",
+  "license": "MIT"
 }

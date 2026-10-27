@@ -14,7 +14,7 @@
 
 正常结束需要正确的业务终态；仅收到网络 EOF 不视为成功。新版 Agent 使用 `turn_completed.stop_reason = "end_turn"` 和 idle session。工具状态为 Notion 富文本数组，具体说明见 [工具卡片协议](tool-card-protocol.md)。
 
-智谱端使用 Chat Completions SSE。`src/providers/zhipu.mjs` 处理流式正文、思考、工具分片、鉴权/限流/断流与取消；`src/router.mjs` 负责协议转换及页面工具执行上下文。模型服务端点由 profile 显式指定。
+智谱端使用 Chat Completions SSE。`src/providers/zhipu.js` 处理流式正文、思考、工具分片、鉴权/限流/断流与取消；`src/router.js` 负责协议转换及页面工具执行上下文。模型服务端点由 profile 显式指定。
 
 ## 数据流
 

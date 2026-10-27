@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { pageHookSource } from '../src/page-hook.mjs';
+import { pageHookSource } from '../src/page-hook.js';
 
 function fixture(origin = 'https://app.notion.com', paths = ['/api/v3/runInferenceTranscript']) {
   const messages = [], passthrough = [];

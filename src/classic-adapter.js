@@ -1,5 +1,6 @@
+import { ProviderError } from './providers/errors.js';
 import { randomUUID } from 'node:crypto';
-import { trimConversation } from './conversation.mjs';
+import { trimConversation } from './conversation.js';
 
 function textValue(value) {
   if (typeof value === 'string') return value;
@@ -40,7 +41,7 @@ export class ClassicAdapter {
       yield patch ? { type: 'patch-sync', data: { s: [step(accumulated, true)] } } : step(accumulated, true);
     } catch (error) {
       if (!signal?.aborted) yield { id: randomUUID(), type: 'error', traceId,
-        message: error?.name === 'ZhipuError' ? error.message : '模型生成失败，请检查本地工具配置。', errorCode: 502 };
+        message: error instanceof ProviderError ? error.message : '模型生成失败，请检查本地工具配置。', errorCode: 502 };
     } finally { this.active.delete(key); }
   }
 }

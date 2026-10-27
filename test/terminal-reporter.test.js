@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TerminalReporter } from '../src/terminal-reporter.mjs';
+import { TerminalReporter } from '../src/terminal-reporter.js';
 const collect=async stream=>{const parts=[];for await(const part of stream)parts.push(part);return parts;};
 
 test('console output streams replies and tool progress while preserving UI callbacks and omitting raw tool data',async()=>{

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { NotionNativeTools, notionId, parseMarkdown, ToolError } from '../src/tools/notion-native.mjs';
-import { trimConversation } from '../src/conversation.mjs';
+import { NotionNativeTools, notionId, parseMarkdown, ToolError } from '../src/tools/notion-native.js';
+import { trimConversation } from '../src/conversation.js';
 
 function fixture() {
   const spaceId=randomUUID(),root=randomUUID(),tables={block:new Map(),collection:new Map(),collection_view:new Map()},calls=[];

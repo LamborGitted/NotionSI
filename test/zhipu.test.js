@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { ZhipuProvider, ZhipuError, ZHIPU_ENDPOINT, sseData } from '../src/providers/zhipu.mjs';
-import { AgentMock } from '../src/agent-mock.mjs';
-import { ClassicAdapter } from '../src/classic-adapter.mjs';
+import { ZhipuProvider, ZhipuError, ZHIPU_ENDPOINT, sseData } from '../src/providers/zhipu.js';
+import { AgentMock } from '../src/agent-mock.js';
+import { ClassicAdapter } from '../src/classic-adapter.js';
 
 const packet = (text, finish = null) => `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: text }, finish_reason: finish }] })}\r\n\r\n`;
 function streamBytes(text, size = 1) {

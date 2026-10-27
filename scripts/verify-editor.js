@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Opt-in integration check against the isolated NotionSI editor fixture only.
-import { Cdp } from '../src/cdp.mjs';
-import { EditorSelection } from '../src/editor-selection.mjs';
+import { Cdp } from '../src/cdp.js';
+import { EditorSelection } from '../src/editor-selection.js';
 import { isDeepStrictEqual } from 'node:util';
 import { readFile, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openNotion } from '../src/notion-launcher.mjs';
+import { openNotion } from '../src/notion-launcher.js';
 
 function fixture(overrides={}) {
   let time=0;const calls=[],connected={connected:true};
@@ -14,6 +14,13 @@ test('an existing debugger is reused without inspecting or launching the app',as
   const f=fixture();f.options.connect=async()=>f.connected;
   f.options.processes=async()=>{throw new Error('must not inspect');};
   assert.equal(await openNotion(f.options),f.connected);assert.equal(f.calls.length,0);
+});
+test('an existing debugger needs no installation path; otherwise a missing path is actionable',async()=>{
+  const f=fixture({executable:undefined});
+  await assert.rejects(openNotion(f.options),/NOTION_PATH/);
+  assert.equal(f.calls.length,0);
+  f.options.connect=async()=>f.connected;
+  assert.equal(await openNotion(f.options),f.connected);
 });
 test('a background instance must fully exit before a debuggable instance is launched',async()=>{
   let scans=0,started=false;const logs=[];

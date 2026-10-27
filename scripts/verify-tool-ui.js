@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Explicit opt-in live UI smoke: recovers the selected AI tab, submits one
 // read-only tool prompt through CDP, then checks native cards and completion.
-import { Cdp } from '../src/cdp.mjs';
+import { Cdp } from '../src/cdp.js';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 

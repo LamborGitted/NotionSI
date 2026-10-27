@@ -1,3 +1,5 @@
+import { ProviderError } from './errors.js';
+
 // Official CN endpoints, selected explicitly. Never fall back across profiles.
 export const ZHIPU_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 export const ZHIPU_ENDPOINTS = Object.freeze({
@@ -6,9 +8,9 @@ export const ZHIPU_ENDPOINTS = Object.freeze({
 });
 export const DEFAULT_ZHIPU_MODEL = 'glm-5.3';
 
-export class ZhipuError extends Error {
+export class ZhipuError extends ProviderError {
   constructor(message, { status, code } = {}) {
-    super(message); this.name = 'ZhipuError'; this.status = status; this.code = code;
+    super(message, { status, code }); this.name = 'ZhipuError';
   }
 }
 

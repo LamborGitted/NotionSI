@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { EditorSelection } from '../../src/editor-selection.mjs';
+import { EditorSelection } from '../../src/editor-selection.js';
 
 export function editorFixture({titles=['prefix TARGET suffix'],rich}={}) {
   const spaceId=randomUUID(),pageId=randomUUID(),outsideId=randomUUID(),ids=titles.map(()=>randomUUID());

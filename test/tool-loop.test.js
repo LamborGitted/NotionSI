@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ZhipuProvider } from '../src/providers/zhipu.mjs';
-import { ToolError } from '../src/tools/notion-native.mjs';
-import { AgentMock } from '../src/agent-mock.mjs';
+import { ZhipuProvider } from '../src/providers/zhipu.js';
+import { ToolError } from '../src/tools/notion-native.js';
+import { AgentMock } from '../src/agent-mock.js';
 
 const event=(delta,finish_reason=null)=>`data: ${JSON.stringify({choices:[{index:0,delta,finish_reason}]})}\n\n`;
 const response=body=>new Response(body,{headers:{'content-type':'text/event-stream'}});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AgentMock } from '../src/agent-mock.mjs';
+import { AgentMock } from '../src/agent-mock.js';
 
 const api = event => `/api/v3/${event}`;
 const request = { spaceId: 'space', threadId: 'thread' };

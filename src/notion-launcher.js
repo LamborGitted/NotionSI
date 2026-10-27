@@ -31,6 +31,7 @@ export async function openNotion({endpoint,executable,connect,attachOnly=false,w
   const port=new URL(endpoint).port;
   try{return await connect(endpoint,1000);}catch{}
   if(attachOnly)throw new Error(`未连接到 Notion 调试端口 ${port}。若当前 Notion 未开启调试，请从菜单或托盘完全退出，再执行 npm start。`);
+  if(!executable)throw new Error('未找到 Notion。请在 .env.local 配置 NOTION_PATH，或通过 --notion 指定 Notion.exe 文件或其所在目录。');
   let running=await processes(executable);
   if(running.length) {
     const otherPort=running.find(p=>p.debugPort&&String(p.debugPort)!==port)?.debugPort;
@@ -51,5 +52,5 @@ export async function openNotion({endpoint,executable,connect,attachOnly=false,w
     await sleep(500);
     try{return await connect(endpoint,1000);}catch{}
   }while(now()<deadline);
-  throw new Error(`Notion 已尝试启动，但 45 秒内未能连接调试端口 ${port}。请检查是否还有另一份 Notion 在后台运行，或使用 --notion 指定正确的 Scoop Notion.exe。`);
+  throw new Error(`Notion 已尝试启动，但 45 秒内未能连接调试端口 ${port}。请检查是否还有另一份 Notion 在后台运行，或使用 --notion 指定正确的 Notion.exe。`);
 }

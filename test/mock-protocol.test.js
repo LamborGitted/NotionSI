@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createClassicFrames, streamClassicFrames } from '../src/mock-protocol.mjs';
+import { createClassicFrames, streamClassicFrames } from '../src/mock-protocol.js';
 
 const request = { threadId: 'test-thread', traceId: 'test-trace' };
 

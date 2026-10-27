@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { Cdp } from '../src/cdp.mjs';
-import { NotionNativeTools } from '../src/tools/notion-native.mjs';
+import { Cdp } from '../src/cdp.js';
+import { NotionNativeTools } from '../src/tools/notion-native.js';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { NotionNativeTools, ToolError, notionId } from './tools/notion-native.mjs';
-import { markdownBlocks, richText, sliceRichText, titleDiff, normalizedProperties } from './editor-markdown.mjs';
+import { NotionNativeTools, ToolError, notionId } from './tools/notion-native.js';
+import { markdownBlocks, richText, sliceRichText, titleDiff, normalizedProperties } from './editor-markdown.js';
 
 const fail=message=>{throw new ToolError(message);};
 const pointer=(id,spaceId)=>({table:'block',id,spaceId});

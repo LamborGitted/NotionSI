@@ -1,165 +1,148 @@
-# NotionSI：Notion AI 路由与智谱国内 API
+# NotionSI
 
-在 Scoop 安装的 Notion 原生界面接管 AI 请求，可选择智谱国内 Coding Plan CN 或标准 API，也可使用本地固定回答测试。通过 CDP 临时注入 `fetch` 钩子，不改 ASAR、不安装证书。
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Node.js](https://img.shields.io/badge/Node.js-24%2B-green)
+![Status](https://img.shields.io/badge/status-experimental-orange)
 
-当前版本：**0.2.0，实验性原型**。已验证的目标是 Windows / Scoop Notion 7.40.1；Notion 网页构建升级后可能需要重新适配。当前自动测试为 75 项，通过记录、已完成功能与后续计划见 [开发状态](docs/project-status.md)，版本变化见 [CHANGELOG](CHANGELOG.md)。
+将 Notion 桌面端的 AI 请求路由到你选择的模型服务，在原生聊天与编辑器中使用自己的 API。
+
+NotionSI 通过本机 Chrome DevTools Protocol（CDP）临时注入请求钩子，无需修改 ASAR 或安装证书。项目以可扩展的模型适配器组织，目前已实现 **智谱 API** 和 **本地 mock**。
+
+> 当前版本为 **0.2.0，实验性原型**。实机验证环境：Windows / Scoop Notion 7.40.1。启动器支持普通 Windows 安装与自定义目录，其他安装版本仍需验证；Notion 更新可能导致协议适配失效。本项目为独立社区项目。
+
+## 功能
+
+- **原生 AI 聊天**：流式回复、多轮对话、停止生成、错误状态。
+- **页面与数据库工具**：搜索、读取、创建、基础 Markdown 更新、回收站操作，以及基础数据库查询与修改。
+- **编辑器 AI**：选区改写、翻译、摘要、续写、自定义要求，支持原生预览、接受和当前进程内撤销。
+- **本地配置**：Notion 安装路径、模型、系统提示词、工具开关、终端正文输出。
+- **模型适配层**：提供商独立配置与工厂入口，便于继续接入其他 API。
 
 ## 快速开始
 
-准备 Node.js 24 或更新版本，以及已登录的 Notion 桌面端。在项目目录运行：
+准备 **Node.js 24+**、npm，以及已登录的 Windows Notion 桌面端。下载或克隆本仓库，进入项目目录：
 
 ```powershell
 npm ci
 Copy-Item .env.example .env.local
 ```
 
-已有 `.env.local` 时请保留原文件。在本机填写其中的 `ZHIPU_API_KEY`，然后运行：
-
-```powershell
-npm run config
-npm run start:coding-cn
-```
-
-看到 `Router ready` 后，在 Notion 新建普通 AI 对话。需要搜索或编辑页面时，将 `.env.local` 中的 `NOTIONSI_TOOLS=off` 改为 `native` 后重启。只想检查本地接管而不调用模型时，运行 `npm run start:mock`。详细配置、运行与验证方法见下文。
-
-## 智谱接入
-
-当前配置是 **GLM Coding Plan CN + GLM-5.3**。通过 `ZHIPU_API_PROFILE` 显式选择端点，不自动回退其他端点、不伪装成其他客户端。智谱官方的指定工具列表不含此自建代理；技术联通不等于官方支持或套餐使用资格，实际计费还由 Key 类型决定。[接入说明](https://docs.bigmodel.cn/cn/coding-plan/tool/others)、[Key 分类](https://docs.bigmodel.cn/cn/coding-plan/notice/api-key-management)
-
-复制 `.env.example` 为 `.env.local`（已有文件时保留原文件），然后在本机填写：
+已有 `.env.local` 时保留原文件。在本机编辑配置，例如使用智谱标准 API：
 
 ```dotenv
 NOTIONSI_PROVIDER=zhipu
-ZHIPU_API_PROFILE=coding-cn
-ZHIPU_API_KEY=你的智谱对应产品API密钥
+ZHIPU_API_PROFILE=standard
+ZHIPU_API_KEY=你的API密钥
 ZHIPU_MODEL=glm-5.3
-ZHIPU_MAX_TOKENS=2048
-ZHIPU_TIMEOUT_MS=180000
-ZHIPU_THINKING=enabled
-ZHIPU_REASONING_EFFORT=low
+
+# 可选：Notion.exe 或其所在目录；留空则自动查找
+NOTION_PATH="D:/Apps/Notion"
 ```
 
-`.env.local` 已加入忽略规则。不要把 Key 粘贴到聊天、命令参数或提交到版本库。进程环境变量优先于文件配置；配置只加载上述允许字段。
+检查配置并启动：
 
 ```powershell
 npm run config
-npm run check:coding-cn
-npm run start:coding-cn
-```
-
-- `config` 只显示配置状态，不显示密钥、不发请求。
-- `check:coding-cn` 通过国内 Coding Plan 端点真实发送固定连通测试提示，不包含 Notion 内容。
-- `start:coding-cn` 启动/连接 Notion 后使用真实模型；已有调试端口可用 `npm run attach:coding-cn`。
-- Coding Plan CN 接口是 `https://open.bigmodel.cn/api/coding/paas/v4/chat/completions`。
-- `ZHIPU_API_PROFILE=standard` 则选择 `https://open.bigmodel.cn/api/paas/v4/chat/completions`。`start:zhipu` / `attach:zhipu` / `check:zhipu` 沿用配置文件选择的 profile；CLI 的 `--profile` 可显式覆盖。
-- 两种端点均使用 Bearer Key 和 SSE，任何错误都不会切换到另一个端点。模型可通过 `ZHIPU_MODEL` 或 `--model` 修改。[接口文档](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)
-
-默认模型为 `glm-5.3`。真实请求的 `HTTP 429` 需要进一步看业务码：`1113` 表示余额不足（套餐 profile 还应核对 Key 类型），`1302` 表示账户速率限制，`1305` 表示模型当前访问量过大；不能全部当成请求频率问题。[官方错误码](https://docs.bigmodel.cn/cn/api/api-code)
-
-GLM-5.3 强制开启思考，配置会自动规范为 `thinking=enabled`，默认使用 `reasoning_effort=low`。可改为 `high` 或 `max`；思考内容不显示为最终回答。[GLM-5.3 参数说明](https://docs.bigmodel.cn/cn/guide/models/text/glm-5.3)
-
-新版 Agent 可发送当前聊天的纯文本和本进程内的历史（最多最近 40 条）。不会转发 Notion Cookie 或请求头；页面内容与写入可通过下文的 native 工具获取或执行。带编辑器选区的聊天会读取并提供选区正文与页面链接，其余聊天不自动读取整页；不支持联网或第三方连接器搜索。思考过程不作为最终回答输出。停止会取消上游请求；鉴权、限流、断流和 Token 上限错误会进入错误终态，不伪装成正常完成，不自动回退官方 AI 或其他计费接口。
-
-## 系统提示词
-
-将 `system-prompt.example.txt` 复制为 `system-prompt.local.txt`，编辑内容，并在 `.env.local` 中增加：
-
-```dotenv
-NOTIONSI_SYSTEM_PROMPT_FILE=system-prompt.local.txt
-```
-
-路径相对于启动时的工作目录。文件必须为非空 UTF-8 文本，最多 64 KiB。启动时读取，修改后需要退出路由进程并重新启动；重启会清除本进程保存的会话历史。未配置此项时不注入系统提示词，mock 模式忽略此项。
-
-每次请求会在聊天历史前添加一条 `system` 消息，不写入 Notion transcript，也不受最近 40 条历史裁剪影响。`npm run config` 只显示是否配置及字节数，不输出提示词正文。`*.local.txt` 已被忽略。连通测试也会使用此提示词，因此强制固定回复的提示词可能改变测试输出。
-
-示例是为当前文本能力编写的简短提示词。社区提取的原始提示词与工具适配边界见 [说明](docs/system-prompt-and-tools.md)。描述工具的提示词不会创建工具；`NOTIONSI_TOOLS=native` 时会发送实际工具 schema，并执行调用与回传结果。未启用时只提供文本对话。
-
-## Notion 工具调用
-
-在 `.env.local` 设置 `NOTIONSI_TOOLS=native`，重新启动路由后启用。示例配置默认关闭这些工具；无需社区全量提示词即可使用，执行器会附加实际能力与参数约定。
-
-已接入 `search`、`view`、`create-pages`、`update-page-v2`、`delete-pages`、`query-data-sources`、`create-database`、`update-database`、`update-todos`。页面与数据库操作通过当前 Notion 登录会话执行，不需新增 Integration Key。Cookie 留在页面内，工具读取的页面内容和结果会发给所选 GLM 模型。
-
-搜索目前是工作区标题搜索。内容编辑支持基础 Markdown；包含未知或嵌套块的页面拒绝整体替换。数据库支持基础列、建行与视图查询，不支持 SQL。任务清单保存在当前本地聊天中。尚未接入 `view-version-history` 和 `exit-setup-mode`。工具 description/schema 优先描述实际可用能力。
-
-每轮最多 8 次模型请求、24 次工具调用。工具结果以 `role=tool` 回传，思考内容保留给后续模型请求但不显示。停止会取消后续调用；已经被服务器接受的写入不保证撤销。工具卡片的状态文字必须使用 Notion 富文本数组，详见 [格式与崩溃修复](docs/tool-card-protocol.md)。
-
-`node scripts/check-tools.mjs` 只测试搜索与读取。`--write` 会创建工具测试页并读写其中的数据，保留测试页以供界面验证；`--resume` 复用 `.local/tools-sandbox.json`。`node scripts/verify-tool-ui.mjs --run --target TARGET_ID` 会恢复指定 AI 标签页，并提交一次搜索/读取请求，检查原生卡片、最终回答与结束状态。
-
-## 编辑器内的 AI
-
-选中文字后，使用 Notion 原生菜单的 **重新格式化** 或 **使用 AI 编辑**，即可让当前配置的 GLM 处理选区。可输入“整理成表格”“改成待办列表”“翻译成英文”等要求。生成结果支持原生差异预览、接受和撤销。
-
-已适配编辑器独立的 `runWriter` 请求，以及本地编辑对应的 `undoAgentServiceTurn`。支持改写、拼写语法修正、缩短、扩写、摘要、续写、解释和自定义文字要求；摘要与续写保留原文后追加，解释只返回说明。输出支持标题、列表、待办、引用、代码块、普通表格与基础行内格式。
-
-支持单个文本选区、同一父级下连续的文本区块；选区外文字及富文本格式保留。带选区的侧栏聊天会提供完整选区，并仅开放 `update-selection` 修改该选区。当前不支持空光标直接写整页，或原选区中包含嵌套内容、图片、数据库、引用区块；未知自定义技能返回本地错误，可改用“使用 AI 编辑”输入要求。
-
-与原生 Writer 一样，内容在预览出现前已写入服务器；“接受”关闭预览，“撤销”恢复本次修改。撤销记录保存在当前路由进程中，重启路由后旧记录失效。生成期间选区发生变化时拒绝覆盖。协议、验证记录与限制见 [编辑器适配说明](docs/editor-ai.md)。
-
-## 运行
-
-终端默认显示模型回复的流式正文、工具名称和开始/完成/失败/取消状态，并为每次生成分配本地编号，例如：
-
-```text
-[AI #1] 开始生成 · glm-5.3
-[工具 #1] search · 开始
-[工具 #1] search · 完成
-[回复 #1] 已找到相关内容。
-[AI #1] 完成 · 8 字符
-```
-
-不输出原始请求、系统提示词、工具参数/返回值、Key 或 Cookie；模型回复本身可能包含其引用的页面内容。`npm start -- --no-content-log` 或 `.env.local` 中设置 `NOTIONSI_LOG_CONTENT=0` 可只保留进度，不打印回复正文。默认值为 `1`。不自动保存到日志文件，重新启动路由进程后配置生效。
-
-需要 Node.js 24 或更新版本。首次运行或更新依赖后安装锁定版本（编辑器 Markdown 使用 `marked`），配置好 `.env.local` 后启动：
-
-```powershell
-npm ci
 npm start
 ```
 
-启动器会查找 `~/scoop/apps/notion/current/Notion.exe`，以本机调试端口启动；也可指定 `--notion "C:\path\Notion.exe"`。若 Notion 已在后台运行但没有调试端口，启动器会提示并等待最多 120 秒：从 Notion 菜单或系统托盘选择“退出”后，会自动以调试模式重新启动。只关闭窗口可能仍留在后台；工具不会强制结束应用。首次启动会等待调试端口最多 45 秒，超过旧版约 10 秒的启动预算。若已有调试端口，则直接连接；端口不同时会提示正确的 `--endpoint` 参数。
+看到 `Router ready` 后，在 Notion **新建普通 AI 对话**。如果 Notion 已在后台运行且没有调试端口，按终端提示从菜单或托盘完全退出，启动器会等待并重新启动它。
 
-Notion 已通过调试端口运行时：
+按 **Ctrl+C** 或输入 **q** 回车撤下钩子，Notion 窗口保留。正常重启 Notion 可关闭调试端口。
+
+无 API Key 时可用本地固定回答检查接管效果：
 
 ```powershell
-npm run attach
+npm start -- --provider mock
 ```
 
-看到 `Router ready` 后，在 Notion 中新建普通 AI 对话、输入一条测试提示。智谱模式会返回模型生成的回答。需要回到固定回答模式时，运行 `npm run start:mock`，预期逐段显示：
+## 统一入口
 
-> 这是 NotionSI 的本地固定回答。请求已被接管，生成现已完成。
+所有运行与诊断命令通过根目录 `index.js` 进入。直接运行 `npm start` 等同于 `node index.js start`。
 
-可自定义文本和分块间隔：
+| 命令 | 用途 |
+| --- | --- |
+| `node index.js start` | 启动或连接 Notion 并安装钩子 |
+| `node index.js attach` | 仅连接已有调试端口 |
+| `node index.js config` | 显示脱敏配置与解析后的 Notion 路径，不发请求 |
+| `node index.js check` | 向当前提供商发送固定连通测试提示，不读取 Notion |
+| `node index.js verify` | 只读检查当前 Notion AI 页面 |
+| `node index.js --help` | 查看选项与其他诊断命令 |
+
+常用选项：
 
 ```powershell
-npm run start:mock -- --answer "你好，这是本地回答。" --delay-ms 100
+node index.js start --notion "D:/Apps/Notion/Notion.exe"
+node index.js attach --endpoint http://127.0.0.1:9222
+node index.js start --provider zhipu --profile standard --model glm-5.3
+node index.js start --no-content-log
 ```
 
-按 Ctrl+C 或输入 `q` 回车，会撤下钩子并保留 Notion 窗口。正常重启 Notion 可关闭调试端口。调试端口仅用于本机，其他本地程序也可通过它访问此会话。
+保留 `npm run attach`、`npm run config`、`npm run check`、`npm run verify` 等快捷命令，以及原有智谱命令别名。
 
-## 范围
+## 配置
 
-- 已实现经典 `runInferenceTranscript` 的固定 NDJSON step/patch 响应；智谱模式支持能识别用户文本的经典请求，空的服务端历史引用不能恢复，请使用新建普通对话。
-- 新版 Agent 支持 `personal_agent` 创建、富文本输入、发送、transcript 分页/订阅与停止。
-- 编辑器支持带选区的 `runWriter`、原生预览/接受和当前进程内的撤销；范围见上文。
-- 正常结束使用 `turn_completed.stop_reason = "end_turn"` 与 idle session；Agent 订阅保持连接不代表仍在生成。
-- 日历 Agent、自定义 Agent、附件和聊天消息编辑/撤回不在此原型范围，返回明确的本地错误。
-- 会话只保存在工具进程内存中，重启工具或刷新后的历史恢复未实现。开启时 transcript 接口使用本地模拟数据，适合新建测试对话。
-- 匹配的 AI 请求失败不会自动回退官方 AI。普通 Notion 请求保持原样；工具日志只输出端点与状态，不输出提示词、Cookie 或认证头。
+配置优先级：**CLI 参数 > 进程环境变量 > `.env.local` > 默认值**。配置在启动时读取，修改后重启路由。
 
-## 验证
+| 配置项 | 用途 |
+| --- | --- |
+| `NOTIONSI_PROVIDER` | `mock` 或 `zhipu`；未配置时为 `mock` |
+| `NOTION_PATH` | Notion.exe 或安装目录，可由 `--notion` 覆盖 |
+| `NOTIONSI_TOOLS` | `off`（默认）或 `native`；开启页面与数据库工具 |
+| `NOTIONSI_SYSTEM_PROMPT_FILE` | 自定义 UTF-8 系统提示词文件，最多 64 KiB |
+| `NOTIONSI_LOG_CONTENT` | `1`（默认）显示回复正文；`0` 仅显示进度 |
+
+Notion 自动查找覆盖 `%LOCALAPPDATA%/Programs/Notion`、`%LOCALAPPDATA%/Notion`、Program Files 和用户/全局 Scoop 目录。显式路径无效时直接报错。路径相对于启动工作目录，不展开 `~`、`%LOCALAPPDATA%` 等变量；`attach` 无需安装路径。
+
+### 模型提供商
+
+| 提供商 | 配置 | 状态 |
+| --- | --- | --- |
+| `mock` | 无需密钥，`--answer` 自定义固定回复 | 已实现，用于本地测试 |
+| `zhipu` | `ZHIPU_API_KEY`、`ZHIPU_MODEL`、`ZHIPU_API_PROFILE` | 已实现，支持标准 API 与 Coding Plan CN |
+| 其他 API | 通过 provider 适配器扩展 | 尚未实现，欢迎贡献 |
+
+智谱默认 profile 为 `standard`；`.env.example` 提供 Coding Plan CN 示例。两种 profile 显式选择，不自动切换，使用对应产品的 Key。连通测试 `npm run check` 会真实调用配置的模型。具体参数与套餐说明见 [使用指南](docs/usage.md#智谱接入)。
+
+## 数据与使用边界
+
+- 模型会收到当前聊天文本、进程内历史，以及请求涉及的选区或工具读取结果。Notion Cookie 留在页面中，不转发给模型。
+- 开启 `native` 工具后可通过当前登录会话执行写入；停止生成不保证撤销已经提交的操作。
+- 终端默认显示模型正文，可能包含页面内容；共享终端时可用 `--no-content-log` 关闭。密钥、原始请求和工具返回值不作为日志输出。
+- 调试端口仅用于本机，其他本地程序也可通过它访问该会话。
+- `.env.local`、本地提示词和 `.local/` 已被忽略，请勿提交密钥或个人页面数据。
+
+当前会话与撤销记录保存在进程内，重启后不能恢复。尚不支持附件、第三方连接器搜索、部分 Agent 模式、空光标写整页或包含复杂嵌套内容的选区。匹配的 AI 请求失败会返回本地错误，不自动回退其他模型或官方 AI。完整限制见 [开发状态](docs/project-status.md) 与 [编辑器说明](docs/editor-ai.md)。
+
+## 开发与贡献
 
 ```powershell
+npm ci
 npm test
-npm run verify
 ```
 
-`verify` 只读取当前 AI 页面的可访问性树和钩子计数，不提交请求。它默认检查固定回答可见、停止按钮消失、提交按钮恢复，以及没有发送错误或版本警告。需要先完成一次原生界面测试。智谱模式可传 `--answer "实际回答中的一段文本"` 来核对实际输出。
+项目使用原生 JavaScript ES Modules（`package.json` 中的 `type: module`），无需构建步骤。CI 在 Node.js 24 的 Windows 与 Ubuntu 上运行自动测试，桌面集成仍需单独验证。
 
-```powershell
-npm run verify -- --output .local/verification.json
+```text
+index.js           统一 CLI 入口
+src/providers/     模型实现、配置适配器与公共错误类型
+src/               CDP、请求路由、聊天与编辑器适配
+scripts/           实机诊断与验证脚本
+test/              自动测试
+docs/              使用指南、协议与兼容说明
 ```
 
-编辑器集成验证使用独立测试页和本机 `.local/editor-sandbox.json` 配置：`npm run verify:editor -- --run` 验证重新格式化与原生撤销；增加 `--table --accept` 验证自定义表格与原生接受。这两项会真实调用所配置模型并编辑测试页，不能对个人笔记运行。脚本依赖本次验证的 Notion 网页构建模块，升级后需重新核对。
+新增模型服务时，参考 [提供商开发指南](docs/providers.md)。提交修复请附复现步骤、Node.js / Notion 版本、安装方式与脱敏错误；涉及真实页面的集成验证请使用独立测试页。
 
-协议边界与研究范围见 [协议概览](docs/protocol-overview.md)。本地 `research/` 保存静态研究报告、原始证据与提取文件，不纳入 Git 提交；`.local/` 的运行验证数据、`.env.local` 及 `*.local.txt` 也仅保留在本机。
+## 文档
+
+- [使用与验证指南](docs/usage.md)
+- [开发状态与路线图](docs/project-status.md)
+- [协议概览](docs/protocol-overview.md)
+- [编辑器 AI](docs/editor-ai.md)
+- [系统提示词与工具](docs/system-prompt-and-tools.md)
+- [更新记录](CHANGELOG.md)
+
+## 许可证
+
+[MIT](LICENSE) © 2026 NotionSI contributors

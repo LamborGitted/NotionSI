@@ -1,5 +1,6 @@
+import { ProviderError } from './providers/errors.js';
 import { randomUUID, createHash } from 'node:crypto';
-import { ToolError, notionId } from './tools/notion-native.mjs';
+import { ToolError, notionId } from './tools/notion-native.js';
 
 export const WRITER_PATH='/api/v3/runWriter';
 export const WRITER_UNDO_PATH='/api/v3/undoAgentServiceTurn';
@@ -69,7 +70,7 @@ export class WriterAdapter {
       }
       run.result=response;this.log('[编辑器] 选区处理完成。');
     } catch(error) {
-      failed=true;const message=['ToolError','ZhipuError'].includes(error?.name)?error.message:signal.aborted?'已停止编辑器生成。':'编辑器处理失败，请检查本地路由。';
+      failed=true;const message=(error?.name === 'ToolError' || error instanceof ProviderError)?error.message:signal.aborted?'已停止编辑器生成。':'编辑器处理失败，请检查本地路由。';
       this.log(`[编辑器] ${message}`);
       session.entities.set(run.undoId,{...entity('error'),id:run.undoId,message,error_type:'provider_error',retry_status:'not_retryable'});
       if(run.engine.pendingChange) {

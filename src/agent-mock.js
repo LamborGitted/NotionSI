@@ -1,5 +1,6 @@
+import { ProviderError } from './providers/errors.js';
 import { randomUUID } from 'node:crypto';
-import { trimConversation } from './conversation.mjs';
+import { trimConversation } from './conversation.js';
 
 const ENDPOINTS = new Set([
   'createAgentThread', 'createCalendarAgentThread', 'sendEventToAgentThread',
@@ -272,7 +273,7 @@ export class AgentMock {
       if (!signal.aborted && !assistant.content[0].text.trim()) throw new Error('Empty provider answer');
     } catch (error) {
       if (!signal.aborted) {
-        failure = error?.name === 'ZhipuError' ? error.message : '模型生成失败，请检查本地工具配置。';
+        failure = error instanceof ProviderError ? error.message : '模型生成失败，请检查本地工具配置。';
         try { this.onError(failure); } catch {}
         const entity = { ...common('error'), message: failure, error_type: 'provider_error', retry_status: 'not_retryable' };
         session.entities.set(entity.id, entity);

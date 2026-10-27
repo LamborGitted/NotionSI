@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { editorFixture } from './helpers/editor-memory.mjs';
-import { markdownBlocks, richText, sliceRichText, titleDiff, normalizedProperties } from '../src/editor-markdown.mjs';
-import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from '../src/writer-adapter.mjs';
-import { AgentMock } from '../src/agent-mock.mjs';
-import { MockRouter } from '../src/router.mjs';
+import { editorFixture } from './helpers/editor-memory.js';
+import { markdownBlocks, richText, sliceRichText, titleDiff, normalizedProperties } from '../src/editor-markdown.js';
+import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from '../src/writer-adapter.js';
+import { AgentMock } from '../src/agent-mock.js';
+import { MockRouter } from '../src/router.js';
 import { EventEmitter } from 'node:events';
 
 test('Markdown builds native headings, nested tasks, inline annotations and tables',()=>{

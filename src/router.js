@@ -1,12 +1,12 @@
+import { ProviderError } from './providers/errors.js';
 import { randomBytes } from 'node:crypto';
-import { pageHookSource } from './page-hook.mjs';
-import { DEFAULT_ANSWER, streamClassicFrames } from './mock-protocol.mjs';
-import { AgentMock } from './agent-mock.mjs';
-import { ClassicAdapter } from './classic-adapter.mjs';
-import { NotionNativeTools, ToolError } from './tools/notion-native.mjs';
-import { EditorSelection } from './editor-selection.mjs';
-import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from './writer-adapter.mjs';
-import { ZhipuError } from './providers/zhipu.mjs';
+import { pageHookSource } from './page-hook.js';
+import { DEFAULT_ANSWER, streamClassicFrames } from './mock-protocol.js';
+import { AgentMock } from './agent-mock.js';
+import { ClassicAdapter } from './classic-adapter.js';
+import { NotionNativeTools, ToolError } from './tools/notion-native.js';
+import { EditorSelection } from './editor-selection.js';
+import { WriterAdapter, WRITER_PATH, WRITER_UNDO_PATH } from './writer-adapter.js';
 
 export const NOTION_ORIGINS = ['https://app.notion.com', 'https://www.notion.so', 'https://www.notion.com'];
 export const CLASSIC_PATH = '/api/v3/runInferenceTranscript';
@@ -47,7 +47,7 @@ export class MockRouter {
             };
             tools.instructions+='当前选区修改仅开放 update-selection；不要用页面更新工具绕过选区边界。';
           }
-        } catch(error) {throw new ZhipuError(error?.name==='ToolError'?error.message:'无法读取编辑器选区。');}
+        } catch(error) {throw new ProviderError(error?.name==='ToolError'?error.message:'无法读取编辑器选区。');}
       }
       yield* provider.stream({...request,messages,onHistory,...tools?{tools}:{}});
     };

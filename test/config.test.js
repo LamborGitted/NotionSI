@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { loadLocalEnv, providerConfig, createProvider, publicConfig } from '../src/config.mjs';
+import { loadLocalEnv, providerConfig, createProvider, publicConfig } from '../src/config.js';
 
 test('local config respects environment overrides and never imports unrelated environment keys', () => {
   const root = mkdtempSync(join(tmpdir(), 'notionsi-config-'));
@@ -22,7 +22,7 @@ test('local config respects environment overrides and never imports unrelated en
 test('missing credentials fail before instrumentation and Coding Plan is not silently selected', () => {
   assert.throws(() => createProvider(providerConfig({ env: {}, provider: 'zhipu' })), /ZHIPU_API_KEY/);
   assert.equal(createProvider(providerConfig({ env: {}, provider: 'mock' })), null);
-  assert.throws(() => providerConfig({ env: {}, provider: 'coding' }), /ZHIPU_API_PROFILE/);
+  assert.throws(() => providerConfig({ env: {}, provider: 'coding' }), /Unknown provider/);
 });
 
 test('CN Coding Plan profile uses the official CN coding endpoint and keeps secrets private', () => {
@@ -30,7 +30,7 @@ test('CN Coding Plan profile uses the official CN coding endpoint and keeps secr
   assert.equal(createProvider(config).endpoint, 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions');
   assert.equal(publicConfig(config).apiProfile, 'coding-cn');
   assert.equal(JSON.stringify(publicConfig(config)).includes('test-coding-key'), false);
-  assert.throws(() => providerConfig({ env: { ZHIPU_API_PROFILE: 'unknown' } }), /ZHIPU_API_PROFILE/);
+  assert.throws(() => providerConfig({ env: { NOTIONSI_PROVIDER: 'zhipu', ZHIPU_API_PROFILE: 'unknown' } }), /ZHIPU_API_PROFILE/);
 });
 
 test('GLM-5.3 enforces thinking with low effort even after a legacy disabled setting', () => {

@@ -54,11 +54,11 @@
 
 ## 文件与范围
 
-- `src/writer-adapter.mjs`：Writer 请求、模型生成、原生响应、重复请求与撤销状态。
-- `src/editor-selection.mjs`：选区解析、读取与边界校验、事务、回读及恢复。
-- `src/editor-markdown.mjs`：锁定版本 `marked` 的 AST 转换；标题、段落、嵌套列表、待办、引用、代码、分隔线、表格及粗体/斜体/删除线/代码/链接。
-- `src/router.mjs`：路由入口，及侧栏聊天选区正文注入、作用域限定的 `update-selection` 工具。
-- `src/page-hook.mjs`：Writer 拦截和本地撤销标识分流。
+- `src/writer-adapter.js`：Writer 请求、模型生成、原生响应、重复请求与撤销状态。
+- `src/editor-selection.js`：选区解析、读取与边界校验、事务、回读及恢复。
+- `src/editor-markdown.js`：锁定版本 `marked` 的 AST 转换；标题、段落、嵌套列表、待办、引用、代码、分隔线、表格及粗体/斜体/删除线/代码/链接。
+- `src/router.js`：路由入口，及侧栏聊天选区正文注入、作用域限定的 `update-selection` 工具。
+- `src/page-hook.js`：Writer 拦截和本地撤销标识分流。
 
 原始选区支持同一父级下连续的、没有子内容的文本类区块。输出可带嵌套列表和表格；原选区中的嵌套块、图片、数据库、同步引用和空光标写整页尚未适配。一次最多读取 100 个选区块、50000 字符；输出最多 200 块、8 层嵌套、表格 12 列和 50 个正文行。HTML/XML 和图片输出在写入前拒绝。
 
@@ -76,7 +76,7 @@
 - 自定义整理表格 → GLM 表格 → 原生预览正常 → 接受关闭弹窗 → 服务器回读确认表格保存。
 - 两项均未改变选区之外的保留区块，没有出现渲染器错误页。
 
-测试脚本 `scripts/verify-editor.mjs` 需要明确传 `--run`；只用于已准备的独立测试页。`.local/editor-sandbox.json` 配置形如 `{ "id": "<page UUID>", "spaceId": "<workspace UUID>", "targetId": "<CDP page target ID>" }`，测试页标题须以 `NotionSI` 开头，至少有一个保留文本区块，以及一个以“待整理内容”开头的原始文本区块。脚本会真实调用模型、编辑测试页，并记录到忽略目录 `.local/`，不应提交其中的用户内容。
+测试脚本 `scripts/verify-editor.js` 需要明确传 `--run`；只用于已准备的独立测试页。`.local/editor-sandbox.json` 配置形如 `{ "id": "<page UUID>", "spaceId": "<workspace UUID>", "targetId": "<CDP page target ID>" }`，测试页标题须以 `NotionSI` 开头，至少有一个保留文本区块，以及一个以“待整理内容”开头的原始文本区块。脚本会真实调用模型、编辑测试页，并记录到忽略目录 `.local/`，不应提交其中的用户内容。
 
 ```powershell
 npm run verify:editor -- --run

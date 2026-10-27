@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Cdp, loopbackEndpoint } from '../src/cdp.mjs';
+import { Cdp, loopbackEndpoint } from '../src/cdp.js';
 
 class Socket extends EventTarget {
   sent = [];

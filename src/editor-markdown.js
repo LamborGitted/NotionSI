@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import { randomUUID } from 'node:crypto';
-import { ToolError } from './tools/notion-native.mjs';
+import { ToolError } from './tools/notion-native.js';
 
 export const richText = tokens => (tokens||[]).map(t=>t[0]).join('');
 export function normalizedProperties(properties={}) {
