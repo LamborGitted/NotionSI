@@ -1,0 +1,15 @@
+node_modules/
+.local/
+*.log
+.env*
+!.env.example
+*.local.txt
+
+# Local protocol captures and extracted third-party application files.
+research/
+
+# Editor and OS files.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
